@@ -91,9 +91,15 @@ def main(argv: list[str]) -> int:
     print(f"\nhashes     : {checked} checked, {mismatched} mismatched "
           f"(manifest lists {len(expected)})")
 
-    total = sum(p.stat().st_size for p in world.rglob("*") if p.is_file())
-    print(f"total size : {total/1e6:.2f} MB across "
-          f"{sum(1 for p in world.rglob('*') if p.is_file())} files")
+    total = count = 0
+    for path in world.rglob("*"):
+        try:
+            if path.is_file():
+                total += path.stat().st_size
+                count += 1
+        except OSError:
+            continue
+    print(f"total size : {total/1e6:.2f} MB across {count} files")
 
     if problems:
         print("\nFAILED:")
