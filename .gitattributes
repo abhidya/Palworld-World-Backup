@@ -1,0 +1,12 @@
+# Palworld world data is binary and rewritten wholesale on every save.
+# LFS keeps the git object database small and makes repeated snapshots cheap:
+# identical files across snapshots dedupe to a single object by content hash.
+*.sav      filter=lfs diff=lfs merge=lfs -text
+*.sav.gz   filter=lfs diff=lfs merge=lfs -text
+# Everything tracked below is text and must stay diffable in the browser.
+*.md       text eol=lf
+*.json     text eol=lf
+*.ini      text eol=lf
+*.py       text eol=lf
+*.ps1      text eol=crlf
+.gitattributes export-ignore

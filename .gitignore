@@ -1,0 +1,10 @@
+# Staging area used while a snapshot is being verified. Never committed:
+# it holds a half-copied world by design.
+/.staging/
+
+# Local-only working copies for save editing / MCP experiments.
+/work/
+/restore-staging/
+/.secrets/
+*.tmp
+__pycache__/
