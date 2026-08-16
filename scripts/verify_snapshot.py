@@ -64,8 +64,13 @@ def main(argv: list[str]) -> int:
     # Unresolved LFS pointers are the #1 way a clone silently looks fine.
     pointers = []
     for path in world.rglob("*.sav"):
-        if path.stat().st_size < 1024 and LFS_MARKER in path.read_bytes()[:200]:
-            pointers.append(str(path.relative_to(root)))
+        try:
+            if path.stat().st_size < 1024 and LFS_MARKER in path.read_bytes()[:200]:
+                pointers.append(str(path.relative_to(root)))
+        except OSError:
+            # A file can vanish mid-scan if a snapshot is republishing the tree
+            # concurrently. The manifest hash pass below is the authority.
+            continue
     if pointers:
         problems.append(
             f"{len(pointers)} file(s) are unresolved Git LFS pointers "
