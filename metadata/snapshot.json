@@ -1,33 +1,33 @@
 {
-  "snapshot_timestamp": "2026-08-17T03:24:16-0400",
-  "reason": "player logged off (1 -> 0)",
+  "snapshot_timestamp": "2026-08-17T07:00:17-0400",
+  "reason": "server shutdown (post-exit, on-disk state final)",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
-  "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
+  "world_id_proof": "server offline; matched last-known world id 64EE4B2C4C81F4912BF109850820D9BA",
   "source_path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\PalServer\\Pal\\Saved\\SaveGames\\0\\64EE4B2C4C81F4912BF109850820D9BA",
   "palserver_exe": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\PalServer\\PalServer.exe",
   "server_version": "v1.0.3.101283",
   "server_name": "Diva Booties",
   "server_running": true,
-  "players_at_snapshot": 0,
-  "snapshot_boundary": "server running (0 players); REST save failed: HTTPConnectionPool(host='127.0.0.1', port=8212): Read timed out. (read timeout=120)",
+  "players_at_snapshot": null,
+  "snapshot_boundary": "server running (? players); REST save failed: HTTPConnectionPool(host='127.0.0.1', port=8212): Read timed out. (read timeout=120)",
   "file_count": 6,
-  "total_bytes": 1974213,
+  "total_bytes": 1941875,
   "critical_file_hashes": {
-    "Level.sav": "e728f244998793aa7b788b273487069d3c6045f8809528c36bda8a3ec30c5aaa",
-    "LevelMeta.sav": "0dd4fd075c96859996db221e5d35d95c490521e33f640b53c2212f51adcfcfda",
+    "Level.sav": "0feed87df8bea47de4fb2c1b58ca1fd79e279e29e368967aa90dc3a2d0cda5a9",
+    "LevelMeta.sav": "e86a7d6bd56432d9d014ad60693bec76e4b0d57a6d1a515670c4206e2985ba47",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74"
   },
   "player_save_hashes": {
-    "Players\\00000000000000000000000000000001.sav": "2bdcfd17899bae6a509cc528b5ee43eee97978b2a358c96ee513d916b9b869d3",
-    "Players\\54001E88000000000000000000000000.sav": "bc611298415625258d1b97769c22a9d61ae2e59907f6c233add83af324a8c88a",
-    "Players\\9C8317FC000000000000000000000000.sav": "b094e137c04e85bdaf76799436894e3724cb0030d24b8e46f565c6350cbc64bf"
+    "Players\\00000000000000000000000000000001.sav": "2d4763001f97fdfbc2a8bec6964df931a23c51dcf25320527ed29192fc06aa79",
+    "Players\\54001E88000000000000000000000000.sav": "8bbe135ba96104d9401a3951643f1f58353a97f4328be3f19ab8e9f43d45fcfd",
+    "Players\\9C8317FC000000000000000000000000.sav": "31d67014784f0bf2c2cb77ef773681e4198d60a0f4f9e86074c3827909cfe7cf"
   },
   "all_file_hashes": {
-    "Level.sav": "e728f244998793aa7b788b273487069d3c6045f8809528c36bda8a3ec30c5aaa",
-    "LevelMeta.sav": "0dd4fd075c96859996db221e5d35d95c490521e33f640b53c2212f51adcfcfda",
-    "Players\\00000000000000000000000000000001.sav": "2bdcfd17899bae6a509cc528b5ee43eee97978b2a358c96ee513d916b9b869d3",
-    "Players\\54001E88000000000000000000000000.sav": "bc611298415625258d1b97769c22a9d61ae2e59907f6c233add83af324a8c88a",
-    "Players\\9C8317FC000000000000000000000000.sav": "b094e137c04e85bdaf76799436894e3724cb0030d24b8e46f565c6350cbc64bf",
+    "Level.sav": "0feed87df8bea47de4fb2c1b58ca1fd79e279e29e368967aa90dc3a2d0cda5a9",
+    "LevelMeta.sav": "e86a7d6bd56432d9d014ad60693bec76e4b0d57a6d1a515670c4206e2985ba47",
+    "Players\\00000000000000000000000000000001.sav": "2d4763001f97fdfbc2a8bec6964df931a23c51dcf25320527ed29192fc06aa79",
+    "Players\\54001E88000000000000000000000000.sav": "8bbe135ba96104d9401a3951643f1f58353a97f4328be3f19ab8e9f43d45fcfd",
+    "Players\\9C8317FC000000000000000000000000.sav": "31d67014784f0bf2c2cb77ef773681e4198d60a0f4f9e86074c3827909cfe7cf",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74"
   },
   "config_redacted_keys": [
@@ -37,5 +37,5 @@
   ],
   "git_commit": null,
   "git_commit_note": "see tag snapshot/<snapshot_timestamp> and rig state palworld-backup.json",
-  "snapshot_tag": "snapshot/20260817-032416"
+  "snapshot_tag": "snapshot/20260817-070017"
 }
