@@ -354,6 +354,10 @@ function show(t){ for(const x of TABS){ sections[x].classList.toggle('on',x===t)
 
   // charts
   const PCOLORS = ['var(--c1)','var(--c2)','var(--c4)'];
+  const svgEl = (t, attrs={}, ...kids) => { const e=document.createElementNS('http://www.w3.org/2000/svg', t);
+    for (const [k,v] of Object.entries(attrs)) if (v!=null) e.setAttribute(k, v);
+    for (const k of kids.flat()) if (k!=null) e.append(k.nodeType?k:document.createTextNode(k));
+    return e; };
   function lineChart(title, series, opts={}){
     // series: [{name, pts:[{x:Date,y}], color}]
     const W=900,H=150,padL=44,padR=10,padT=8,padB=18;
@@ -364,20 +368,20 @@ function show(t){ for(const x of TABS){ sections[x].classList.toggle('on',x===t)
     const x0=+times[0], x1=+times.at(-1)||x0+1;
     const X=t=>padL+(+t-x0)/(x1-x0)*(W-padL-padR);
     const Y=v=>padT+(1-(v-y0)/(y1-y0))*(H-padT-padB);
-    const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:'none'});
+    const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:'none'});
     for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3;
-      svg.append(el('line',{x1:padL,y1:Y(v),x2:W-padR,y2:Y(v),stroke:'var(--line)','stroke-width':'1'}));
-      svg.append(el('text',{x:padL-6,y:Y(v)+4,'text-anchor':'end','font-size':'10',fill:'var(--ink3)'},fmt(v)));
+      svg.append(svgEl('line',{x1:padL,y1:Y(v),x2:W-padR,y2:Y(v),stroke:'var(--line)','stroke-width':'1'}));
+      svg.append(svgEl('text',{x:padL-6,y:Y(v)+4,'text-anchor':'end','font-size':'10',fill:'var(--ink3)'},fmt(v)));
     }
     for (const [i,sr] of series.entries()){
       const pts = sr.pts.filter(p=>p.y!=null);
       const dstr = pts.map((p,j)=>(j?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1)).join(' ');
-      svg.append(el('path',{d:dstr,fill:'none',stroke:sr.color||PCOLORS[i],'stroke-width':'2','stroke-linejoin':'round'}));
+      svg.append(svgEl('path',{d:dstr,fill:'none',stroke:sr.color||PCOLORS[i],'stroke-width':'2','stroke-linejoin':'round'}));
       const lp = pts.at(-1);
-      if (lp) svg.append(el('circle',{cx:X(lp.x),cy:Y(lp.y),r:'3.5',fill:sr.color||PCOLORS[i]}));
+      if (lp) svg.append(svgEl('circle',{cx:X(lp.x),cy:Y(lp.y),r:'3.5',fill:sr.color||PCOLORS[i]}));
     }
-    svg.append(el('text',{x:padL,y:H-4,'font-size':'10',fill:'var(--ink3)'},times[0].toLocaleDateString(undefined,{month:'short',day:'numeric'})));
-    svg.append(el('text',{x:W-padR,y:H-4,'text-anchor':'end','font-size':'10',fill:'var(--ink3)'},times.at(-1).toLocaleDateString(undefined,{month:'short',day:'numeric'})));
+    svg.append(svgEl('text',{x:padL,y:H-4,'font-size':'10',fill:'var(--ink3)'},times[0].toLocaleDateString(undefined,{month:'short',day:'numeric'})));
+    svg.append(svgEl('text',{x:W-padR,y:H-4,'text-anchor':'end','font-size':'10',fill:'var(--ink3)'},times.at(-1).toLocaleDateString(undefined,{month:'short',day:'numeric'})));
     const box = el('div',{class:'chart'},el('h3',{},title),svg);
     if (series.length>1) box.append(el('div',{class:'legend'},...series.map((sr,i)=>el('span',{},el('i',{style:`background:${sr.color||PCOLORS[i]}`}),sr.name))));
     return box;
