@@ -52,3 +52,16 @@ Verify a clone is real save data, not pointers:
 ```bash
 python scripts/verify_snapshot.py .
 ```
+
+## Dashboard (GitHub Pages)
+
+`docs/` hosts a static dashboard built from every snapshot — bases, inventory,
+recipes/mission planner, pal condition, eggs (with contents), breeding
+calculator, trends and milestones mined from this repo's git history.
+
+- Live: enable **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
+- It refreshes automatically: a local `pre-commit` hook regenerates
+  `docs/data.js` + `docs/trends.js` on every snapshot commit (no CI involved).
+  Re-install the hook after a fresh clone by copying it from
+  `scripts/update_dashboard.py` docs, or run that script manually.
+- Toolchain lives in `D:\palworld-dashboard` on the rig.
