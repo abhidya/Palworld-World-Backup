@@ -1,6 +1,6 @@
 {
   "snapshot_timestamp": "2026-08-19T16:19:18-0700",
-  "reason": "periodic idle (server up, 0 players)",
+  "reason": "candidate: clone Mann (9C8317FC) onto TALLYODA (D87864F3) via PalworldSaveTools character transfer; base snapshot 072ce2b",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
   "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
   "source_path": "/Users/mannybhidya/PalworldServer/palworld/Pal/Saved/SaveGames/0/64EE4B2C4C81F4912BF109850820D9BA",
@@ -9,11 +9,11 @@
   "server_name": "Diva Booties",
   "server_running": true,
   "players_at_snapshot": 0,
-  "snapshot_boundary": "server running (0 players); REST /v1/api/save accepted",
+  "snapshot_boundary": "offline edit of snapshot 072ce2b (portable-editing loop); not a live-server snapshot",
   "file_count": 8,
-  "total_bytes": 2108854,
+  "total_bytes": 2589032,
   "critical_file_hashes": {
-    "Level.sav": "cb90641cd79016734196e742f2771b7237c01eba9fa9d5718489035199b864aa",
+    "Level.sav": "82e6af4b122752a37665db9f8358406f7d25c1e8570fe66d2328efeab8bb6075",
     "LevelMeta.sav": "1386bfeed71da84a20c953c5d107c90b6538c4bc57188bcd1bf291a3de57b05d",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74"
   },
@@ -22,17 +22,17 @@
     "Players\\54001E88000000000000000000000000.sav": "1d9ac43c3943a244ee42d376306ec21d8569928901061bd7896f4b7f1dc8d84b",
     "Players\\54001E88000000000000000000000000_dps.sav": "c6d617f15ed5819b596cb91de0b771eab9b71e84f4a503d3524db4ebbd2b2094",
     "Players\\9C8317FC000000000000000000000000.sav": "baf404acd82d061caceee68e7f03496d12992492d3650d15c706e552c00c954a",
-    "Players\\D87864F3000000000000000000000000.sav": "d8c0a69e4c7dec9af4eb989297f7a8ae92b9b427ab5047177fec7d4d68f09b12"
+    "Players\\D87864F3000000000000000000000000.sav": "3ffe074693d9b384838665ca77cef14e1944292d54a573abe42f094a223e2556"
   },
   "all_file_hashes": {
-    "Level.sav": "cb90641cd79016734196e742f2771b7237c01eba9fa9d5718489035199b864aa",
+    "Level.sav": "82e6af4b122752a37665db9f8358406f7d25c1e8570fe66d2328efeab8bb6075",
     "LevelMeta.sav": "1386bfeed71da84a20c953c5d107c90b6538c4bc57188bcd1bf291a3de57b05d",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74",
     "Players\\00000000000000000000000000000001.sav": "9f3346360dfda52219b42b20689dd1d6db69e5b6b281b8904f630fe80a96613e",
     "Players\\54001E88000000000000000000000000.sav": "1d9ac43c3943a244ee42d376306ec21d8569928901061bd7896f4b7f1dc8d84b",
     "Players\\54001E88000000000000000000000000_dps.sav": "c6d617f15ed5819b596cb91de0b771eab9b71e84f4a503d3524db4ebbd2b2094",
     "Players\\9C8317FC000000000000000000000000.sav": "baf404acd82d061caceee68e7f03496d12992492d3650d15c706e552c00c954a",
-    "Players\\D87864F3000000000000000000000000.sav": "d8c0a69e4c7dec9af4eb989297f7a8ae92b9b427ab5047177fec7d4d68f09b12"
+    "Players\\D87864F3000000000000000000000000.sav": "3ffe074693d9b384838665ca77cef14e1944292d54a573abe42f094a223e2556"
   },
   "config_redacted_keys": [
     "AdminPassword",
