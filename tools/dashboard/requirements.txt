@@ -1,0 +1,3 @@
+# extract.py / trends.py dependencies. Not on PyPI -- installed from git.
+git+https://github.com/oMaN-Rod/palworld-save-tools.git
+git+https://github.com/MRHRTZ/pyooz.git
