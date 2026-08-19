@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diva Booties Command Center</title>
+<style>
+:root{
+  --bg:#f2f4fa; --surface:#ffffff; --surface2:#e9edf6; --line:#d5dbea;
+  --ink:#1b2138; --ink2:#4d5573; --ink3:#8189a8;
+  --c1:#2F6FD6; --c2:#A56410; --c3:#157A53; --c4:#8B4FC4;
+  --good:#157A53; --warn:#A56410; --bad:#C03434;
+  --accent:#2F6FD6; --gold:#8a6d1a; --gold-bg:#f5ecce; --shadow:0 1px 3px rgba(20,30,60,.08);
+  --r:10px;
+}
+:root:not([data-theme="light"]){ }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1118; --surface:#161926; --surface2:#1d2133; --line:#2a2f45;
+    --ink:#e8eaf2; --ink2:#a8adc4; --ink3:#6d7291;
+    --c1:#4C8DF0; --c2:#C4791A; --c3:#1FA871; --c4:#AB69E0;
+    --good:#1FA871; --warn:#C4791A; --bad:#E05252;
+    --accent:#4C8DF0; --gold:#e8c46a; --gold-bg:#3a3113; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1118; --surface:#161926; --surface2:#1d2133; --line:#2a2f45;
+  --ink:#e8eaf2; --ink2:#a8adc4; --ink3:#6d7291;
+  --c1:#4C8DF0; --c2:#C4791A; --c3:#1FA871; --c4:#AB69E0;
+  --good:#1FA871; --warn:#C4791A; --bad:#E05252;
+  --accent:#4C8DF0; --gold:#e8c46a; --gold-bg:#3a3113; --shadow:none;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,sans-serif;padding-bottom:70px}
+a{color:var(--accent)}
+header{padding:18px 22px 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+h1{font-size:21px;letter-spacing:.2px}
+.sub{color:var(--ink3);font-size:12.5px}
+#themeBtn{margin-left:auto;background:var(--surface);border:1px solid var(--line);color:var(--ink2);border-radius:8px;padding:5px 12px;cursor:pointer}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;margin:14px 22px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:9px 15px;min-width:118px;box-shadow:var(--shadow)}
+.tile .v{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile .l{font-size:10.5px;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px}
+nav{display:flex;flex-wrap:wrap;gap:3px;padding:8px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+nav button{background:none;border:1px solid transparent;color:var(--ink2);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13.5px}
+nav button:hover{color:var(--ink)}
+nav button:focus-visible{outline:2px solid var(--accent)}
+nav button.on{background:var(--surface);color:var(--ink);border-color:var(--line);box-shadow:var(--shadow)}
+main{padding:18px 22px;max-width:1440px}
+section{display:none} section.on{display:block}
+h2{font-size:15.5px;margin:20px 0 10px}
+h2:first-child{margin-top:0}
+table{border-collapse:collapse;width:100%;background:var(--surface);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}
+th{background:var(--surface2);color:var(--ink2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;white-space:nowrap}
+th.sorted{color:var(--ink)}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+input[type=text],select{background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:14px;outline:none;min-width:200px}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow)}
+.card h3{font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.meter{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:3px 0 8px}
+.meter i{display:block;height:100%;border-radius:4px}
+.klabel{font-size:11px;color:var(--ink2);display:flex;justify-content:space-between;margin-top:6px}
+.pill{display:inline-block;background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:1px 9px;font-size:11.5px;color:var(--ink2);margin:1px 2px 1px 0}
+.pill.gold{color:var(--gold);background:var(--gold-bg);border-color:transparent}
+.pill.bad{color:var(--bad);border-color:var(--bad)}
+.pill.good{color:var(--good);border-color:var(--good)}
+.bar{display:flex;align-items:center;gap:8px;margin:3px 0}
+.bar .bl{width:180px;font-size:12.5px;color:var(--ink2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;justify-content:flex-end;align-items:center;gap:6px}
+.bar .bt{flex:1;height:16px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.bar .bt i{display:block;height:100%;background:var(--c1);border-radius:0 4px 4px 0}
+.bar .bv{width:84px;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.g{color:var(--good)}.w{color:var(--warn)}.b{color:var(--bad)}.dim{color:var(--ink3)}
+.sm{font-size:12px}
+.gender-f{color:#d6479c}.gender-m{color:var(--c1)}
+.tag{font-size:10.5px;padding:0 6px;border-radius:4px;background:var(--surface2);color:var(--ink2)}
+.note{color:var(--ink3);font-size:12px;margin:6px 0}
+.bigicon{font-size:24px;line-height:1}
+button.act{background:var(--surface2);border:1px solid var(--line);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer}
+.result-child{font-size:17px;font-weight:600;color:var(--c3)}
+details{margin:6px 0}
+summary{cursor:pointer;color:var(--ink2)}
+.palimg{width:34px;height:34px;border-radius:8px;background:var(--surface2);object-fit:contain;vertical-align:middle}
+.palimg.sm2{width:24px;height:24px}
+.itemimg{width:22px;height:22px;object-fit:contain;vertical-align:-5px}
+.elch{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:10px;color:#fff}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:12px;box-shadow:var(--shadow)}
+.chart h3{font-size:13px;color:var(--ink2);margin-bottom:6px}
+.chart svg{width:100%;height:150px;display:block}
+.chart .legend{display:flex;gap:14px;font-size:11.5px;color:var(--ink2);margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.delta{font-size:12px;font-variant-numeric:tabular-nums}
+.delta.up{color:var(--good)}.delta.down{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
+.guide-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+.guide-item:last-child{border-bottom:none}
+.guide-item .ic{font-size:20px;width:28px;text-align:center}
+.tooltip{position:relative}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+@media (max-width: 820px){
+  header{padding:12px 12px 0}
+  h1{font-size:17px}
+  .tiles{margin:10px 12px;gap:7px}
+  .tile{min-width:calc(33% - 7px);padding:7px 10px;flex:1}
+  .tile .v{font-size:16px}
+  nav{padding:6px 8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{padding:8px 11px;white-space:nowrap;font-size:13px}
+  main{padding:12px 12px}
+  section>table, section div>table{display:block;overflow-x:auto;white-space:nowrap;max-width:100%}
+  .cards{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+  input[type=text],select{min-width:0;flex:1}
+  .row{gap:7px}
+  .bar .bl{width:110px}
+  .bar .bv{width:64px}
+  th,td{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+<script src="data.js"></script>
+<script src="trends.js" onerror="window.PALTRENDS=[]"></script>
+<header>
+  <h1>🌴 <span id="hdr-name">Palworld</span> Command Center</h1>
+  <span class="sub" id="hdr-sub"></span>
+  <button id="themeBtn" title="Toggle theme">◐ theme</button>
+</header>
+<div class="tiles" id="hdr-tiles"></div>
+<nav id="nav"></nav>
+<main id="main"></main>
+<script>
+const D = window.PALDATA;
+const T = window.PALTRENDS || [];
+const $ = s => document.querySelector(s);
+const el = (t, attrs={}, ...kids) => { const e=document.createElement(t); for(const [k,v] of Object.entries(attrs)){ if(k==='class')e.className=v; else if(k==='html')e.innerHTML=v; else if(k.startsWith('on'))e.addEventListener(k.slice(2),v); else if(v!=null)e.setAttribute(k,v);} for(const k of kids.flat()){ if(k!=null&&k!==false) e.append(k.nodeType?k:document.createTextNode(k)); } return e; };
+const fmt = n => n==null?'–':Math.round(n).toLocaleString('en-US');
+const fmt1 = n => n==null?'–':(Math.round(n*10)/10).toLocaleString('en-US');
+
+// ---------- theme ----------
+const root = document.documentElement;
+const savedTheme = localStorage.getItem('pal-theme');
+if (savedTheme) root.dataset.theme = savedTheme;
+$('#themeBtn').addEventListener('click', ()=>{
+  const cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  const next = cur==='dark'?'light':'dark';
+  root.dataset.theme = next; localStorage.setItem('pal-theme', next);
+});
+
+// ---------- lookups ----------
+const itemName = id => (D.itemMeta[id]||{}).name || id;
+const palMeta = id => D.palMeta[id] || null;
+const passive = p => D.passives[p] || {name:p, rank:0};
+const skill = w => D.skills[w] || {name:w};
+const elMeta = e => D.elements[e] || {display:e, color:'#888'};
+const ticksToDate = t => t ? new Date((t/1e7 - 62135596800)*1000) : null;
+const days = s => { const d=Math.floor(s/86400), h=Math.floor(s%86400/3600); return `${d}d ${h}h`; };
+const ICONS = 'icons/';
+function palIcon(id, cls='palimg'){
+  const m = palMeta(id);
+  const img = el('img',{class:cls, alt:'', loading:'lazy'});
+  if (m && m.icon){ img.src = ICONS+'pals/'+m.icon; img.onerror=()=>img.remove(); }
+  else img.remove?.();
+  return (m&&m.icon)?img:el('span',{});
+}
+function itemIcon(id){
+  const m = D.itemMeta[id];
+  if (m && m.icon){ const i=el('img',{class:'itemimg',alt:'',loading:'lazy',src:ICONS+'items/'+m.icon}); i.onerror=()=>i.remove(); return i; }
+  return el('span',{});
+}
+function elChip(e){
+  const m = elMeta(e);
+  return el('span',{class:'elch',style:`background:${m.color}`},m.display);
+}
+function passivePill(p){
+  const ps = passive(p);
+  return el('span',{class:'pill '+(ps.rank>=2?'gold':(ps.rank<0?'bad':'')), title:ps.desc||''},ps.name);
+}
+function wazaPill(w){
+  const s = skill(w);
+  return el('span',{class:'pill',title:(s.el?`${s.el} · `:'')+(s.pw?`power ${s.pw} · `:'')+(s.ct?`CT ${s.ct}s`:'')},
+    s.el?el('i',{style:`display:inline-block;width:8px;height:8px;border-radius:2px;background:${elMeta(s.el).color};margin-right:5px`}):'', s.name);
+}
+
+// item totals + per-location
+const totals = {}, locTotals = {};
+for (const [cid,c] of Object.entries(D.containers)) {
+  const w = c.where; const loc = w.kind==='chest' ? w.base : (w.kind==='guild-chest'?'Guild chest':`🎒 ${w.player} (${w.kind})`);
+  for (const s of c.slots) {
+    totals[s.id]=(totals[s.id]||0)+s.ct;
+    (locTotals[loc]=locTotals[loc]||{})[s.id]=(locTotals[loc][s.id]||0)+s.ct;
+  }
+}
+const guild = D.guilds.find(g=>g.members.length>1)||D.guilds[0];
+const realPlayers = D.players.filter(p=>p.level);
+
+// ---------- header ----------
+$('#hdr-name').textContent = D.meta.serverName || 'Palworld';
+$('#hdr-sub').textContent = `snapshot ${(D.meta.snapshotTime||'').replace('T',' ').slice(0,16)} · ${D.meta.serverVersion||''}`;
+const gameDays = Math.floor(D.gameTicks/1e7/86400);
+$('#hdr-tiles').append(...[
+  ['In-game day', fmt(gameDays)], ['World runtime', days(D.realTicks/1e7)],
+  ['Guild level', guild?guild.campLevel:'–'], ['Gold', '💰 '+fmt(D.totalMoney)],
+  ['Pals owned', fmt(D.pals.length)], ['Bases', D.bases.length],
+  ['Eggs ready', D.incubators.filter(i=>i.hatchedReady).length]]
+  .map(([l,v])=>el('div',{class:'tile'},el('div',{class:'v'},String(v)),el('div',{class:'l'},l))));
+
+// ---------- tabs ----------
+const TABS = ['Overview','Trends','Bases','Inventory','Recipes','Pals','Care','Eggs','Breeding','Players','Guide'];
+const sections = {};
+for (const t of TABS) {
+  const b = el('button',{onclick:()=>show(t)},t); b.id='nb-'+t;
+  $('#nav').append(b);
+  sections[t] = el('section',{id:'sec-'+t});
+  $('#main').append(sections[t]);
+}
+function show(t){ for(const x of TABS){ sections[x].classList.toggle('on',x===t); document.getElementById('nb-'+x).classList.toggle('on',x===t);} location.hash=t; }
+
+// ============================================================ OVERVIEW
+(function(){
+  const s = sections.Overview;
+  s.append(el('h2',{},'Trainers'));
+  const tb = el('table',{},el('thead',{},el('tr',{},...['Player','Level','Captures','Paldeck','Dungeons','Bosses','Tech unlocked','Last online'].map(h=>el('th',{},h)))));
+  const body = el('tbody');
+  for (const p of [...realPlayers].sort((a,b)=>(b.level||0)-(a.level||0))) {
+    const r = p.records||{};
+    const lo = ticksToDate(p.lastOnlineTicks);
+    body.append(el('tr',{},
+      el('td',{},el('b',{},p.name),' ',el('span',{class:'tag'},p.platform||'')),
+      el('td',{class:'num'},String(p.level||'–')),
+      el('td',{class:'num'},fmt(r.captures)),
+      el('td',{class:'num'},`${p.paldeck?p.paldeck.length:'–'} / 299`),
+      el('td',{class:'num'},fmt(r.dungeons)),
+      el('td',{class:'num'},fmt((r.towerBosses||0)+(r.bossKills||0))),
+      el('td',{class:'num'},fmt(p.techUnlocked)),
+      el('td',{class:'sm dim'}, lo?lo.toLocaleString():'–')));
+  }
+  tb.append(body); s.append(tb);
+
+  s.append(el('h2',{},'Top stockpiles'));
+  const top = Object.entries(totals).filter(([id])=>id!=='Money').sort((a,b)=>b[1]-a[1]).slice(0,14);
+  const mx = top[0]?top[0][1]:1;
+  s.append(el('div',{}, ...top.map(([id,ct])=>el('div',{class:'bar'},
+    el('div',{class:'bl'},itemIcon(id),itemName(id)),
+    el('div',{class:'bt'},el('i',{style:`width:${Math.max(2,ct/mx*100)}%`})),
+    el('div',{class:'bv'},fmt(ct))))));
+
+  s.append(el('h2',{},'World facts'));
+  const facts = [
+    ['🥚 Eggs ready', D.incubators.filter(i=>i.hatchedReady).length],
+    ['🏗️ Structures', fmt(Object.values(D.builtAtBases).reduce((a,b)=>a+b,0))],
+    ['📦 Chests tracked', Object.values(D.containers).filter(c=>c.where.kind==='chest').length],
+    ['🐑 Pals at work', D.pals.filter(p=>p.loc.startsWith('Base')).length],
+    ['⭐ Alphas owned', D.pals.filter(p=>p.boss).length],
+    ['✨ Lucky pals', D.pals.filter(p=>p.lucky).length],
+  ];
+  s.append(el('div',{class:'tiles',style:'margin:0'},...facts.map(([l,v])=>el('div',{class:'tile'},el('div',{class:'v'},String(v)),el('div',{class:'l'},l)))));
+
+  // element distribution of owned pals
+  s.append(el('h2',{},'Owned pals by element'));
+  const elc = {};
+  for (const p of D.pals){ const m=palMeta(p.id); if(m) for(const e of (m.el||[])) elc[e]=(elc[e]||0)+1; }
+  s.append(el('div',{}, ...Object.entries(elc).sort((a,b)=>b[1]-a[1]).map(([e,c])=>el('span',{class:'pill',style:'margin:2px'},elChip(e),' '+c))));
+})();
+
+// ============================================================ TRENDS
+(function(){
+  const s = sections.Trends;
+  if (!T.length){ s.append(el('div',{class:'note'},'No trend data — run trends.py to mine the backup history.')); return; }
+  const times = T.map(p=>new Date(p.ts));
+  const span = (times.at(-1)-times[0])/3600000;
+  s.append(el('div',{class:'note'},`${T.length} snapshots · ${times[0].toLocaleString()} → ${times.at(-1).toLocaleString()} (${span.toFixed(0)}h)`));
+
+  // delta chips vs previous snapshot and vs 24h ago
+  const last=T.at(-1), prev=T.length>1?T.at(-2):null;
+  const dayAgoIdx = (()=>{ const cut=times.at(-1)-86400000; for(let i=T.length-1;i>=0;i--) if(times[i]<=cut) return i; return 0; })();
+  const dayAgo = T[dayAgoIdx];
+  function deltaChip(label, cur, old){
+    if (cur==null||old==null) return null;
+    const d = cur-old; if (!d) return null;
+    return el('span',{class:'pill'},`${label} `,el('span',{class:'delta '+(d>0?'up':'down')},(d>0?'+':'')+fmt(d)));
+  }
+  s.append(el('h2',{},'Since previous snapshot'));
+  const chips1 = [];
+  if (prev){
+    chips1.push(deltaChip('💰 gold',last.money,prev.money), deltaChip('pals',last.palCount,prev.palCount),
+      deltaChip('structures',last.structures,prev.structures), deltaChip('eggs ready',last.eggsReady,prev.eggsReady));
+    for (const nm of Object.keys(last.players||{})) {
+      const a=last.players[nm]||{}, b=(prev.players||{})[nm]||{};
+      chips1.push(deltaChip(nm+' XP',a.exp,b.exp), deltaChip(nm+' captures',a.captures,b.captures));
+    }
+  }
+  const c1f = chips1.filter(Boolean);
+  s.append(el('div',{}, c1f.length?c1f:el('span',{class:'note'},'no change')));
+
+  // ---- milestone & anomaly feed ----
+  s.append(el('h2',{},'Event feed — milestones & anomalies'));
+  const events=[];
+  for (let i=1;i<T.length;i++){
+    const a=T[i-1], b=T[i], when=times[i];
+    const ev=(icon,txt,cls)=>events.push({when, icon, txt, cls, reason:b.reason});
+    for (const nm of Object.keys(b.players||{})){
+      const pa=(a.players||{})[nm]||{}, pb=b.players[nm]||{};
+      if (pb.level>pa.level&&pa.level!=null) ev('🎉',`${nm} hit Lv ${pb.level}`,'up');
+      if ((pb.towers||0)>(pa.towers||0)) ev('🗼',`${nm} defeated a tower boss! (${pb.towers} total)`,'up');
+      if ((pb.paldeck||0)-(pa.paldeck||0)>=1) ev('📖',`${nm} added ${pb.paldeck-pa.paldeck} Paldeck ${pb.paldeck-pa.paldeck>1?'entries':'entry'} (${pb.paldeck})`,'up');
+      if ((pb.captures||0)-(pa.captures||0)>=10) ev('🔮',`${nm} captured ${pb.captures-pa.captures} pals in one session`,'up');
+      if ((pb.dungeons||0)>(pa.dungeons||0)) ev('🏰',`${nm} cleared ${(pb.dungeons-pa.dungeons)} dungeon(s)`,'up');
+      if ((pb.relics||0)-(pa.relics||0)>=1) ev('🗿',`${nm} found ${(pb.relics-pa.relics)} Lifmunk Effigies`,'up');
+    }
+    const md=(b.money||0)-(a.money||0);
+    if (Math.abs(md)>=10000) ev(md>0?'💰':'💸',`Gold ${md>0?'+':''}${fmt(md)}`,md>0?'up':'down');
+    const pd=(b.palCount||0)-(a.palCount||0);
+    if (pd>=3) ev('🐣',`Pal collection +${pd} (${b.palCount})`,'up');
+    if (pd<=-3) ev('⚠️',`Pal count dropped by ${-pd} — released or lost?`,'down');
+    const sd=(b.structures||0)-(a.structures||0);
+    if (sd>=10) ev('🏗️',`Built ${sd} structures`,'up');
+    if (sd<=-10) ev('💥',`${-sd} structures gone — raid damage or demolition?`,'down');
+    if (b.avgSanity!=null&&a.avgSanity!=null&&a.avgSanity-b.avgSanity>=5) ev('😵',`Base sanity fell ${fmt1(a.avgSanity-b.avgSanity)} pts (now ${fmt1(b.avgSanity)})`,'down');
+    if ((b.sickWorkers||0)>(a.sickWorkers||0)) ev('🤒',`${b.sickWorkers} worker(s) now sick`,'down');
+    if ((b.eggsReady||0)>(a.eggsReady||0)) ev('🥚',`${b.eggsReady-a.eggsReady} more egg(s) finished incubating`,'up');
+    if ((b.guildLevel||0)>(a.guildLevel||0)) ev('🏅',`Guild base level up → ${b.guildLevel}`,'up');
+    // item anomalies
+    for (const id of new Set([...Object.keys(a.items||{}),...Object.keys(b.items||{})])){
+      const d=(b.items[id]||0)-(a.items[id]||0);
+      const base=a.items[id]||0;
+      if (d<=-500 && base>0 && -d/base>=0.3) ev('📉',`${itemName(id)} down ${fmt(-d)} (${fmt(base)}→${fmt(b.items[id]||0)}) — big spend or loss`,'down');
+      if (d>=2000) ev('📈',`${itemName(id)} +${fmt(d)}`,'up');
+    }
+  }
+  events.reverse();
+  const feed = el('div',{class:'card',style:'max-height:420px;overflow-y:auto'});
+  if (!events.length) feed.append(el('div',{class:'note'},'Nothing notable yet — events appear as more snapshots accumulate.'));
+  for (const e of events.slice(0,200)) feed.append(el('div',{class:'guide-item'},
+    el('div',{class:'ic'},e.icon),
+    el('div',{},el('span',{class:e.cls==='down'?'b':'g'},e.txt),
+      el('div',{class:'sm dim'},e.when.toLocaleString()+' · '+(e.reason||'')))));
+  s.append(feed);
+
+  s.append(el('h2',{},'Last 24 hours — item movers'));
+  const movers = [];
+  for (const id of new Set([...Object.keys(last.items||{}),...Object.keys(dayAgo.items||{})])){
+    const d = (last.items[id]||0)-(dayAgo.items[id]||0);
+    if (Math.abs(d)>=5) movers.push([id,d]);
+  }
+  movers.sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  s.append(el('div',{}, movers.length? movers.slice(0,24).map(([id,d])=>el('span',{class:'pill'},itemIcon(id),` ${itemName(id)} `,el('span',{class:'delta '+(d>0?'up':'down')},(d>0?'+':'')+fmt(d)))) : el('span',{class:'note'},'no significant movement')));
+
+  // charts
+  const PCOLORS = ['var(--c1)','var(--c2)','var(--c4)'];
+  const svgEl = (t, attrs={}, ...kids) => { const e=document.createElementNS('http://www.w3.org/2000/svg', t);
+    for (const [k,v] of Object.entries(attrs)) if (v!=null) e.setAttribute(k, v);
+    for (const k of kids.flat()) if (k!=null) e.append(k.nodeType?k:document.createTextNode(k));
+    return e; };
+  function lineChart(title, series, opts={}){
+    // series: [{name, pts:[{x:Date,y}], color}]
+    const W=900,H=150,padL=44,padR=10,padT=8,padB=18;
+    const allY = series.flatMap(s=>s.pts.map(p=>p.y)).filter(y=>y!=null);
+    if(!allY.length) return null;
+    let y0 = opts.zero?0:Math.min(...allY), y1 = Math.max(...allY);
+    if (y0===y1){ y1=y0+1; }
+    const x0=+times[0], x1=+times.at(-1)||x0+1;
+    const X=t=>padL+(+t-x0)/(x1-x0)*(W-padL-padR);
+    const Y=v=>padT+(1-(v-y0)/(y1-y0))*(H-padT-padB);
+    const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:'none'});
+    for (let i=0;i<=3;i++){ const v=y0+(y1-y0)*i/3;
+      svg.append(svgEl('line',{x1:padL,y1:Y(v),x2:W-padR,y2:Y(v),stroke:'var(--line)','stroke-width':'1'}));
+      svg.append(svgEl('text',{x:padL-6,y:Y(v)+4,'text-anchor':'end','font-size':'10',fill:'var(--ink3)'},fmt(v)));
+    }
+    for (const [i,sr] of series.entries()){
+      const pts = sr.pts.filter(p=>p.y!=null);
+      const dstr = pts.map((p,j)=>(j?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1)).join(' ');
+      svg.append(svgEl('path',{d:dstr,fill:'none',stroke:sr.color||PCOLORS[i],'stroke-width':'2','stroke-linejoin':'round'}));
+      const lp = pts.at(-1);
+      if (lp) svg.append(svgEl('circle',{cx:X(lp.x),cy:Y(lp.y),r:'3.5',fill:sr.color||PCOLORS[i]}));
+    }
+    svg.append(svgEl('text',{x:padL,y:H-4,'font-size':'10',fill:'var(--ink3)'},times[0].toLocaleDateString(undefined,{month:'short',day:'numeric'})));
+    svg.append(svgEl('text',{x:W-padR,y:H-4,'text-anchor':'end','font-size':'10',fill:'var(--ink3)'},times.at(-1).toLocaleDateString(undefined,{month:'short',day:'numeric'})));
+    const box = el('div',{class:'chart'},el('h3',{},title),svg);
+    if (series.length>1) box.append(el('div',{class:'legend'},...series.map((sr,i)=>el('span',{},el('i',{style:`background:${sr.color||PCOLORS[i]}`}),sr.name))));
+    return box;
+  }
+  const pnames = Object.keys(last.players||{}).filter(n=>((last.players[n]||{}).level||0)>1);
+  const grid = el('div',{class:'grid2'});
+  const charts = [
+    lineChart('Player XP', pnames.map((n,i)=>({name:n,pts:T.map((p,j)=>({x:times[j],y:(p.players[n]||{}).exp}))}))),
+    lineChart('Captures', pnames.map((n,i)=>({name:n,pts:T.map((p,j)=>({x:times[j],y:(p.players[n]||{}).captures}))}))),
+    lineChart('Gold', [{name:'gold',pts:T.map((p,j)=>({x:times[j],y:p.money})),color:'var(--c2)'}]),
+    lineChart('Pals owned', [{name:'pals',pts:T.map((p,j)=>({x:times[j],y:p.palCount})),color:'var(--c3)'}]),
+    lineChart('Structures built', [{name:'structures',pts:T.map((p,j)=>({x:times[j],y:p.structures})),color:'var(--c1)'}]),
+    lineChart('Base worker avg sanity', [{name:'sanity',pts:T.map((p,j)=>({x:times[j],y:p.avgSanity})),color:'var(--c4)'}]),
+    lineChart('Coal stock', [{name:'coal',pts:T.map((p,j)=>({x:times[j],y:(p.items||{}).Coal})),color:'var(--c2)'}]),
+    lineChart('Paldeck entries', pnames.map((n,i)=>({name:n,pts:T.map((p,j)=>({x:times[j],y:(p.players[n]||{}).paldeck}))}))),
+  ].filter(Boolean);
+  charts.forEach(c=>grid.append(c));
+  s.append(el('h2',{},'Charts'), grid);
+})();
+
+// ============================================================ BASES
+(function(){
+  const s = sections.Bases;
+  for (const b of [...D.bases].sort((a,b)=>a.label<b.label?-1:1)) {
+    const workers = D.pals.filter(p=>p.loc===b.label);
+    const chestConts = b.chests.map(c=>c.cont);
+    let itemsCt=0;
+    for (const cid of chestConts){ const c=D.containers[cid]; if(c){itemsCt+=c.slots.reduce((a,s)=>a+s.ct,0);} }
+    const objTop = Object.entries(b.objects).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    s.append(el('div',{class:'card',style:'margin-bottom:14px'},
+      el('h3',{},`${b.label} `,el('span',{class:'dim sm'},`(${Math.round(b.pos[0]/1000)}, ${Math.round(b.pos[1]/1000)})`)),
+      el('div',{class:'sm dim'},`${Object.values(b.objects).reduce((a,x)=>a+x,0)} structures · ${b.chests.length} storage objects · ${fmt(itemsCt)} items stored`),
+      el('h2',{},'Workers ('+workers.length+')'),
+      el('div',{}, ...workers.map(p=>{
+        const meta=palMeta(p.id); const hungerPct = meta&&meta.stomach&&p.hunger!=null ? p.hunger/meta.stomach*100 : null;
+        const san = p.san==null?100:p.san;
+        return el('span',{class:'pill '+(p.sick?'bad':(san<80?'bad':san<95?'':'good')), title:`SAN ${san.toFixed(0)} · hunger ${hungerPct!=null?hungerPct.toFixed(0)+'%':'?'}${p.sick?' · SICK':''}`},
+          palIcon(p.id,'palimg sm2'),` ${p.nick||p.name} Lv${p.lv}`);
+      })),
+      el('h2',{},'Machines & stations'),
+      el('div',{}, ...Object.entries(b.objects).filter(([o])=>{
+          const sm=(D.structMeta||{})[o]; return sm && sm.name!==o && !/foundation|wall|roof|pillar|stair|fence|ladder|ivy|bush|tree|plant/i.test(o);
+        }).sort((a,b)=>b[1]-a[1]).map(([o,c])=>{
+          const sm=D.structMeta[o];
+          const ic = sm.icon?el('img',{class:'itemimg',src:ICONS+'structures/'+sm.icon,alt:'',loading:'lazy'}):'';
+          if (ic) ic.onerror=()=>ic.remove();
+          return el('span',{class:'pill'},ic,` ${sm.name}${c>1?' ×'+c:''}`);
+        })),
+      el('h2',{},'All built'),
+      el('div',{}, ...objTop.map(([o,c])=>el('span',{class:'pill'},`${((D.structMeta||{})[o]||{}).name||o} ×${c}`)))));
+  }
+})();
+
+// ============================================================ INVENTORY
+(function(){
+  const s = sections.Inventory;
+  const locs = Object.keys(locTotals).sort();
+  const sel = el('select',{}, el('option',{value:''},'All locations'), ...locs.map(l=>el('option',{value:l},l)));
+  const q = el('input',{type:'text',placeholder:'Search items… (e.g. ingot, sphere, cake)'});
+  const out = el('div');
+  const render = ()=>{
+    const qq = q.value.trim().toLowerCase(); const lc = sel.value;
+    const src = lc ? {[lc]:locTotals[lc]} : locTotals;
+    const agg = {};
+    for (const [loc,items] of Object.entries(src)) for (const [id,ct] of Object.entries(items)) {
+      const nm = itemName(id);
+      if (qq && !nm.toLowerCase().includes(qq) && !id.toLowerCase().includes(qq)) continue;
+      (agg[id]=agg[id]||{id,nm,total:0,locs:{}}); agg[id].total+=ct; agg[id].locs[loc]=(agg[id].locs[loc]||0)+ct;
+    }
+    const list = Object.values(agg).sort((a,b)=>b.total-a.total).slice(0,400);
+    out.innerHTML='';
+    const tb = el('table',{},el('thead',{},el('tr',{},el('th',{},'Item'),el('th',{},'Type'),el('th',{class:'num'},'Total'),el('th',{},'Where'))));
+    const body=el('tbody');
+    for (const r of list) {
+      const m = D.itemMeta[r.id]||{};
+      body.append(el('tr',{},
+        el('td',{},itemIcon(r.id),' ',el('b',{},r.nm)),
+        el('td',{class:'sm dim'},m.type||''),
+        el('td',{class:'num'},fmt(r.total)),
+        el('td',{}, ...Object.entries(r.locs).sort((a,b)=>b[1]-a[1]).map(([l,c])=>el('span',{class:'pill'},`${l}: ${fmt(c)}`)))));
+    }
+    tb.append(body); out.append(tb);
+    if(!list.length) out.append(el('div',{class:'note'},'No matches.'));
+  };
+  q.addEventListener('input',render); sel.addEventListener('change',render);
+  s.append(el('div',{class:'row'},q,sel), out); render();
+})();
+
+// ============================================================ RECIPES + MISSION PLANNER
+(function(){
+  const s = sections.Recipes;
+
+  // ---------- mission planner ----------
+  const GATHER = {Wood:'chop trees / Logging Site', Stone:'Stone Pit or any rocks', Ore:'metal nodes — desert & volcano clusters, or Mining Site I',
+    Coal:'dark nodes — volcano/desert caves, or ranch Dumud', Sulfur:'volcano & sand dune caves', PaldiumFragment:'blue nodes, riverbeds, crusher from stone',
+    Quartz:'astral mountain white nodes (bring a good mining pal)', Fiber:'crusher from wood, or bushes', Leather:'hunt Rushoar/Fuack/etc.',
+    Wool:'ranch Lamball/Cremis', Milk:'ranch Mozzarina / merchants', Egg:'ranch Chikipi', Honey:'ranch Beegarde / Cinnamoth forests',
+    HighQualityPalOil:'hunt Dumud/Digtoise/Flambelle or merchants', Bone:'hunt Rushoar/Gorirat or merchants', VenomGland:'hunt Depresso/Caprity Noct',
+    FlameOrgan:'hunt Foxparks/Flambelle', ElectricOrgan:'hunt Sparkit/Jolthog', IceOrgan:'hunt Pengullet/Hangyu Cryst', CrudeOil:'oil extractor on oil spots / oil rig'};
+  const STATION_WORK = st => /furnace/i.test(st)?'Kindling' : /cooking|kitchen|pot/i.test(st)?'Cooking' : /mill|crusher/i.test(st)?'Watering' : 'Handiwork';
+  const baseStations = {};      // base label -> [{asset,name,count}]
+  for (const b of D.bases){
+    baseStations[b.label]=[];
+    for (const [a,c] of Object.entries(b.objects)){
+      const sm=(D.structMeta||{})[a];
+      if (sm && sm.name!==a) baseStations[b.label].push({asset:a,name:sm.name,count:c});
+    }
+  }
+  function basesWithStation(stationName){
+    if(!stationName) return [];
+    const norm = s2=>s2.toLowerCase().replace(/[^a-z0-9]/g,'');
+    const target=norm(stationName);
+    const out=[];
+    for (const [label,sts] of Object.entries(baseStations))
+      for (const st of sts)
+        if (norm(st.name)===target || norm(st.name).includes(target) || target.includes(norm(st.name)))
+          out.push(label);
+    return [...new Set(out)];
+  }
+  function bestWorkers(baseLabel, workType, n=3){
+    const workKey = workType==='Cooking'?'Cooking':workType; // palcalc suitability keys
+    return D.pals.filter(p=>p.loc===baseLabel).map(p=>{
+      const m=palMeta(p.id)||{}; const rank=(m.work||{})[workKey]|| (workType==='Cooking'?(m.work||{}).Kindling:0) ||0;
+      return {p, rank, cs:m.cs||70};
+    }).filter(x=>x.rank>0).sort((a,b)=>b.rank-a.rank||b.cs-a.cs).slice(0,n);
+  }
+  const mq = el('input',{type:'text',placeholder:'Item to produce… (e.g. Carbon Fiber)',list:'recipeList'});
+  const dl = el('datalist',{id:'recipeList'});
+  Object.keys(D.recipes).sort().forEach(n=>dl.append(el('option',{value:n})));
+  const mqty = el('input',{type:'text',placeholder:'Qty',style:'min-width:70px;width:90px',value:'100'});
+  const mbtn = el('button',{class:'act'},'Plan mission');
+  const mout = el('div');
+  function mission(){
+    mout.innerHTML='';
+    const name = mq.value.trim(); const qty = Math.max(1, parseInt(mqty.value)||1);
+    const r = D.recipes[name];
+    if (!r){ mout.append(el('div',{class:'note'},'Pick a recipe from the suggestions.')); return; }
+    // recursive expansion with on-hand netting
+    const have = Object.assign({}, totals);          // consumable copy
+    const crafts = [];                                // bottom-up craft steps
+    const raws = {};                                  // raw shortfalls
+    function need(nm, id, amount, depth){
+      const onHand = id? (have[id]||0) : 0;
+      const used = Math.min(onHand, amount);
+      if (id) have[id] = onHand-used;
+      const short = amount-used;
+      if (short<=0) return;
+      const rr = D.recipes[nm];
+      if (!rr || depth>7){ raws[nm]=(raws[nm]||{id, ct:0}); raws[nm].ct+=short; return; }
+      const v = rr.variants[0];
+      const runs = Math.ceil(short/(v.out||1));
+      for (const m of v.mats) need(m.name, m.id, m.ct*runs, depth+1);
+      crafts.push({nm, id:rr.id, runs, out:runs*(v.out||1), work:(v.work||0)*runs, station:rr.station});
+    }
+    need(name, r.id, qty, 0);
+    const card = el('div',{class:'card',style:'margin-bottom:14px'});
+    card.append(el('h3',{},'🎯 Mission: ',r.id?itemIcon(r.id):'',` ${fmt(qty)} × ${name}`));
+    const onHand0 = r.id?(totals[r.id]||0):0;
+    if (onHand0) card.append(el('div',{class:'sm g'},`Already have ${fmt(onHand0)} in storage${onHand0>=qty?' — mission already complete!':''}`));
+    // 1. gather list
+    const rawList = Object.entries(raws);
+    if (rawList.length){
+      card.append(el('h2',{},'1 · Gather / farm (shortfall after using storage)'));
+      for (const [nm,info] of rawList.sort((a,b)=>b[1].ct-a[1].ct)){
+        const locsBits=[];
+        if (info.id) for (const [loc,items] of Object.entries(locTotals)) if (items[info.id]) locsBits.push(`${loc} has ${fmt(items[info.id])}`);
+        const hint = GATHER[info.id] || GATHER[nm] || null;
+        card.append(el('div',{class:'sm',style:'margin:3px 0 3px 10px'},
+          info.id?itemIcon(info.id):'', el('b',{},` ${fmt(info.ct)} × ${nm}`),
+          locsBits.length?el('span',{class:'dim'},'  (storage: '+locsBits.join(' · ')+')'):'',
+          hint?el('div',{class:'dim sm',style:'margin-left:26px'},'→ '+hint):''));
+      }
+    } else card.append(el('div',{class:'sm g',style:'margin-top:6px'},'✔ Every material is already in storage.'));
+    // 2. craft steps
+    if (crafts.length){
+      card.append(el('h2',{},'2 · Craft, deepest first'));
+      for (const c of crafts){
+        const bs = basesWithStation(c.station);
+        const wt = c.station?STATION_WORK(c.station):'Handiwork';
+        let bestLine=null, bestRate=0, bestBase=null;
+        for (const b of (bs.length?bs:Object.keys(baseStations))){
+          const ws = bestWorkers(b, wt);
+          const rate = ws.reduce((a,x)=>a+x.cs*x.rank/100,0);
+          if (rate>bestRate){ bestRate=rate; bestBase=b; bestLine=ws; }
+        }
+        const eta = bestRate>0 ? c.work/ (bestRate*5*60) : null; // minutes, roughly calibrated to in-game speed
+        card.append(el('div',{class:'sm',style:'margin:6px 0 2px 10px'},
+          c.id?itemIcon(c.id):'', el('b',{},` ${fmt(c.out)} × ${c.nm}`),
+          el('span',{class:'dim'},` — ${c.station||'any workbench'}`),
+          c.station? (bs.length? el('span',{class:'g'},` ✔ at ${bs.join(', ')}`) : el('span',{class:'b'},' ✘ not built at any base!')) : ''));
+        if (bestLine&&bestLine.length)
+          card.append(el('div',{class:'dim sm',style:'margin-left:26px'},
+            `best crew @ ${bestBase}: `,
+            ...bestLine.map(x=>el('span',{class:'pill'},palIcon(x.p.id,'palimg sm2'),` ${x.p.nick||x.p.name} (${wt} ${x.rank})`)),
+            eta!=null?` · very rough est. ${eta<1?'<1 min':(eta>120?fmt1(eta/60)+' h':fmt(eta)+' min')} of work`:''));
+      }
+      const totalWork = crafts.reduce((a,c)=>a+c.work,0);
+      card.append(el('div',{class:'sm',style:'margin-top:8px'},el('b',{},`Total workload: ${fmt(totalWork)}`),
+        el('span',{class:'dim'},' (estimates assume your best-suited pals stay on task)')));
+    }
+    // 3. route
+    card.append(el('h2',{},'3 · Suggested route'));
+    const route=[];
+    const chestPulls={};
+    // which bases hold the stored mats we're consuming
+    const consumed = {};
+    (function markConsumed(nm,id,amount,depth){
+      const rr=D.recipes[nm]; const onHand=id?(totals[id]||0):0;
+      const used=Math.min(onHand,amount);
+      if (used>0&&id) consumed[id]=(consumed[id]||0)+used;
+      const short=amount-used;
+      if (short<=0||!rr||depth>7) return;
+      const v=rr.variants[0]; const runs=Math.ceil(short/(v.out||1));
+      for (const m of v.mats) markConsumed(m.name,m.id,m.ct*runs,depth+1);
+    })(name, r.id, qty, 0);
+    for (const [id,ct] of Object.entries(consumed)){
+      const spots = Object.entries(locTotals).filter(([l,it])=>it[id]).sort((a,b)=>b[1][id]-a[1][id]);
+      if (spots.length) (chestPulls[spots[0][0]]=chestPulls[spots[0][0]]||[]).push(`${fmt(Math.min(ct,spots[0][1][id]))} ${itemName(id)}`);
+    }
+    for (const [loc,pulls] of Object.entries(chestPulls)) route.push(`Grab from ${loc}: ${pulls.join(', ')}`);
+    for (const [nm,info] of rawList) route.push(`Farm ${fmt(info.ct)} ${nm}${GATHER[info.id]?' — '+GATHER[info.id]:''}`);
+    for (const c of crafts) route.push(`Queue ${fmt(c.out)} ${c.nm} at ${basesWithStation(c.station)[0]||'a base with '+(c.station||'a workbench')}`);
+    route.forEach((st,i)=>card.append(el('div',{class:'sm',style:'margin:2px 0 2px 10px'},el('span',{class:'pill'},String(i+1)),' ',st)));
+    mout.append(card);
+  }
+  mbtn.addEventListener('click',mission);
+  mq.addEventListener('keydown',e=>{if(e.key==='Enter')mission();});
+  s.append(el('h2',{},'Mission planner'),
+    el('div',{class:'note'},'Tell it what you need and how many — it nets out storage, expands sub-recipes, finds which base has the machines, picks your best-suited pals and estimates the work.'),
+    el('div',{class:'row'},mq,dl,mqty,mbtn), mout);
+
+  s.append(el('h2',{},'Recipe search'));
+  const q = el('input',{type:'text',placeholder:'Search recipes… (e.g. cake, rifle, giga sphere)'});
+  const out = el('div');
+  const names = Object.keys(D.recipes).sort();
+  function have(id){ return id?(totals[id]||0):0; }
+  function haveByName(nm){ const r=D.recipes[nm]; const id=r&&r.id; if(id) return have(id);
+    const hit = Object.entries(D.itemMeta).find(([,m])=>m.name===nm); return hit?have(hit[0]):0; }
+  function plan(nm, qty, depth, seen, linesOut){
+    if (depth>6 || seen.has(nm)) return;
+    const r = D.recipes[nm]; if (!r) return;
+    const v = r.variants[0]; if(!v) return;
+    const crafts = Math.ceil(qty/(v.out||1));
+    for (const m of v.mats) {
+      const need = m.ct*crafts;
+      const got = m.id?have(m.id):haveByName(m.name);
+      const short = Math.max(0,need-got);
+      linesOut.push({depth, name:m.name, id:m.id, need, got, short, craftable:!!D.recipes[m.name]});
+      if (short>0 && D.recipes[m.name]) { const s2=new Set(seen); s2.add(nm); plan(m.name, short, depth+1, s2, linesOut); }
+    }
+  }
+  const render = ()=>{
+    const qq=q.value.trim().toLowerCase(); out.innerHTML='';
+    if (!qq){ out.append(el('div',{class:'note'},`${names.length} recipes loaded. Type to search — results check every base chest and backpack, with a craft path for anything missing.`)); return; }
+    const hits = names.filter(n=>n.toLowerCase().includes(qq)).slice(0,25);
+    for (const nm of hits) {
+      const r = D.recipes[nm];
+      const card = el('div',{class:'card',style:'margin-bottom:12px'});
+      card.append(el('h3',{},r.id?itemIcon(r.id):'',nm,' ',el('span',{class:'tag'},r.type||'')));
+      r.variants.forEach(v=>{
+        const ok = v.mats.every(m=>(m.id?have(m.id):haveByName(m.name))>=m.ct);
+        card.append(el('div',{class:'sm',style:'margin:6px 0 2px'},
+          el('span',{class:ok?'g':'w'},ok?'✔ craftable now':'✘ missing materials'),
+          el('span',{class:'dim'},`  · work ${fmt(v.work)} · makes ${v.out}`)));
+        for (const m of v.mats) {
+          const got = m.id?have(m.id):haveByName(m.name);
+          const okm = got>=m.ct;
+          const locsBits=[];
+          if (m.id) for (const [loc,items] of Object.entries(locTotals)) if (items[m.id]) locsBits.push(`${loc}: ${fmt(items[m.id])}`);
+          card.append(el('div',{class:'sm',style:'margin-left:12px'},
+            el('span',{class:okm?'g':'b'},okm?'●':'○'),' ',m.id?itemIcon(m.id):'',` ${m.name} — need ${fmt(m.ct)}, have ${fmt(got)} `,
+            el('span',{class:'dim'},locsBits.length?(' ['+locsBits.join(' · ')+']'):'')));
+        }
+        if (!ok) {
+          const lines=[]; plan(nm,1,0,new Set(),lines);
+          const shortLines = lines.filter(l=>l.short>0);
+          if (shortLines.length){
+            const det = el('details',{},el('summary',{},'Craft path for missing materials'));
+            for (const l of shortLines) det.append(el('div',{class:'sm',style:`margin-left:${12+l.depth*16}px`},
+              el('span',{class:l.craftable?'w':'b'},l.craftable?'⚒':'⛏'),` ${l.name}: short ${fmt(l.short)} (have ${fmt(l.got)}/${fmt(l.need)})${l.craftable?'':' — gather raw'}`));
+            card.append(det);
+          }
+        }
+      });
+      out.append(card);
+    }
+    if(!hits.length) out.append(el('div',{class:'note'},'No recipe matches.'));
+  };
+  q.addEventListener('input',render);
+  s.append(el('div',{class:'row'},q),out); render();
+})();
+
+// ============================================================ PALS
+(function(){
+  const s = sections.Pals;
+  const q = el('input',{type:'text',placeholder:'Search pals / passives / moves…'});
+  const locSel = el('select',{},el('option',{value:''},'Everywhere'),
+    ...[...new Set(D.pals.map(p=>p.loc))].sort().map(l=>el('option',{value:l},l)));
+  const out = el('div');
+  let sortKey='lv', sortDir=-1;
+  const cols = [['Pal','name'],['El',''],['Loc','loc'],['Lv','lv'],['♀♂','g'],
+    ['HP','iv0'],['ATK','iv2'],['DEF','iv3'],['Souls','souls'],['★','rank'],['Passives','passives'],['Moves','waza']];
+  const val = (p,k)=>{
+    if(k==='iv0')return p.iv[0]; if(k==='iv2')return p.iv[2]; if(k==='iv3')return p.iv[3];
+    if(k==='souls')return p.souls.reduce((a,b)=>a+b,0);
+    if(k==='passives')return p.passives.length; if(k==='rank')return p.rank-1; if(k==='waza')return (p.waza||[]).length;
+    return p[k];
+  };
+  const render=()=>{
+    const qq=q.value.trim().toLowerCase(), lc=locSel.value;
+    let list = D.pals.filter(p=>(!lc||p.loc===lc));
+    if(qq) list=list.filter(p=>(p.nick||'').toLowerCase().includes(qq)||p.name.toLowerCase().includes(qq)
+      ||p.passives.some(ps=>passive(ps).name.toLowerCase().includes(qq))
+      ||(p.waza||[]).some(w=>skill(w).name.toLowerCase().includes(qq)));
+    list.sort((a,b)=>{const x=val(a,sortKey),y=val(b,sortKey); return (x<y?-1:x>y?1:0)*sortDir;});
+    out.innerHTML='';
+    const thead = el('thead',{},el('tr',{},...cols.map(([h,k])=>el('th',{class:k===sortKey?'sorted':'',onclick:k?()=>{if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1;}render();}:null},h+(k===sortKey?(sortDir<0?' ↓':' ↑'):'')))));
+    const body = el('tbody');
+    for (const p of list.slice(0,500)) {
+      const m = palMeta(p.id)||{};
+      body.append(el('tr',{},
+        el('td',{},palIcon(p.id,'palimg sm2'),' ',el('b',{},p.nick||p.name), p.nick?el('span',{class:'dim sm'},' '+p.name):'', p.boss?' ⭐':'', p.lucky?' ✨':''),
+        el('td',{}, ...(m.el||[]).map(elChip)),
+        el('td',{class:'sm dim'},p.loc),
+        el('td',{class:'num'},String(p.lv)),
+        el('td',{class:p.g==='F'?'gender-f':'gender-m'},p.g==='F'?'♀':'♂'),
+        el('td',{class:'num'},String(p.iv[0])),el('td',{class:'num'},String(p.iv[2])),el('td',{class:'num'},String(p.iv[3])),
+        el('td',{class:'num'},p.souls.some(x=>x)?p.souls.join('/'):'–'),
+        el('td',{class:'num'},p.rank>1?'★'.repeat(p.rank-1):'–'),
+        el('td',{}, ...p.passives.map(passivePill)),
+        el('td',{}, ...(p.waza||[]).map(wazaPill))));
+    }
+    out.append(el('table',{},thead,body));
+    out.append(el('div',{class:'note'},`${list.length} pals · IVs 0–100 · souls HP/ATK/DEF/Craft · hover passives for effect, moves for element/power`));
+  };
+  q.addEventListener('input',render); locSel.addEventListener('change',render);
+  s.append(el('div',{class:'row'},q,locSel),out); render();
+})();
+
+// ============================================================ CARE
+(function(){
+  const s = sections.Care;
+  s.append(el('div',{class:'note'},'Wellbeing of every pal stationed at a base. Sanity defaults to 100 when the save has no drift recorded.'));
+  const grid = el('div',{class:'cards'});
+  const workers = D.pals.filter(p=>p.loc.startsWith('Base')).sort((a,b)=>(a.san==null?100:a.san)-(b.san==null?100:b.san));
+  for (const p of workers) {
+    const meta = palMeta(p.id)||{};
+    const san = p.san==null?100:p.san;
+    const hungerPct = meta.stomach&&p.hunger!=null?Math.min(100,p.hunger/meta.stomach*100):null;
+    const mood = p.sick?'🤒':(san<70?'😵':san<85?'😟':san<95?'🙂':'😄');
+    const sanCol = san<70?'var(--bad)':(san<90?'var(--warn)':'var(--good)');
+    const hunCol = hungerPct==null?'var(--line)':(hungerPct<30?'var(--bad)':hungerPct<60?'var(--warn)':'var(--good)');
+    grid.append(el('div',{class:'card'},
+      el('h3',{},el('span',{class:'bigicon'},mood),palIcon(p.id),el('span',{},p.nick||p.name),el('span',{class:'dim sm'},`Lv${p.lv} · ${p.loc}`)),
+      el('div',{class:'klabel'},el('span',{},'Sanity'),el('span',{},san.toFixed(0)+' / 100')),
+      el('div',{class:'meter'},el('i',{style:`width:${san}%;background:${sanCol}`})),
+      el('div',{class:'klabel'},el('span',{},'Belly'),el('span',{},hungerPct==null?'?':hungerPct.toFixed(0)+'%')),
+      el('div',{class:'meter'},el('i',{style:`width:${hungerPct||0}%;background:${hunCol}`})),
+      el('div',{class:'sm'},
+        p.sick?el('span',{class:'pill bad'},'⚠ '+String(p.sick).replace('EPalBaseCampWorkerSickType::','')):el('span',{class:'pill good'},'healthy'),
+        ' ',el('span',{class:'pill'},'💙 '+fmt(p.friend)),
+        ' ',meta.work?Object.entries(meta.work).map(([w,r])=>el('span',{class:'pill'},`${w} ${r}`)):null)));
+  }
+  s.append(grid);
+})();
+
+// ============================================================ EGGS
+(function(){
+  const s = sections.Eggs;
+  const ready = D.incubators.filter(i=>i.hatchedReady);
+  const cooking = D.incubators.filter(i=>i.egg&&!i.hatchedReady);
+  const empty = D.incubators.filter(i=>!i.egg&&!i.hatchedReady);
+  s.append(el('div',{class:'tiles',style:'margin:0 0 12px'},
+    el('div',{class:'tile'},el('div',{class:'v g'},String(ready.length)),el('div',{class:'l'},'Ready to hatch')),
+    el('div',{class:'tile'},el('div',{class:'v w'},String(cooking.length)),el('div',{class:'l'},'Incubating')),
+    el('div',{class:'tile'},el('div',{class:'v dim'},String(empty.length)),el('div',{class:'l'},'Empty incubators')),
+    el('div',{class:'tile'},el('div',{class:'v'},String(D.storedEggs.reduce((a,e)=>a+e.ct,0))),el('div',{class:'l'},'Eggs in storage'))));
+
+  const contentBits = (c)=>{
+    if (!c) return [el('span',{class:'dim sm'},'contents unknown')];
+    const bits=[];
+    if (c.species) bits.push(palIcon(c.speciesId,'palimg sm2'),el('b',{class:'g'},' '+c.species),
+      c.g?el('span',{class:c.g==='F'?'gender-f':'gender-m'},' '+(c.g==='F'?'♀':'♂')):'');
+    if (c.rolledAtHatch) bits.push(el('span',{class:'dim sm'},' · stats roll at hatch'));
+    if (c.iv) bits.push(el('span',{class:'dim sm'},` · IV ${c.iv[0]}/${c.iv[2]}/${c.iv[3]}`));
+    if (c.passives&&c.passives.length) bits.push(el('div',{},...c.passives.map(passivePill)));
+    if (c.waza&&c.waza.length) bits.push(el('div',{},...c.waza.map(wazaPill)));
+    return bits;
+  };
+  s.append(el('h2',{},'Incubators'));
+  const grid=el('div',{class:'cards'});
+  for (const i of [...ready,...cooking]) {
+    grid.append(el('div',{class:'card'},
+      el('h3',{},el('span',{class:'bigicon'},i.hatchedReady?'🐣':'🥚'),el('span',{},i.egg?i.egg.name:'?'),
+        i.hatchedReady?el('span',{class:'pill good'},'READY'):el('span',{class:'pill'},'incubating')),
+      el('div',{class:'sm'},...contentBits(i.egg&&i.egg.contents)),
+      el('div',{class:'sm dim'}, i.baseId? ((D.bases.find(b=>b.id===i.baseId)||{}).label||'') : 'not at a base')));
+  }
+  s.append(grid);
+  s.append(el('h2',{},'Eggs in chests & backpacks'));
+  if (!D.storedEggs.length) s.append(el('div',{class:'note'},'None right now.'));
+  else {
+    const grid2=el('div',{class:'cards'});
+    for (const e of D.storedEggs) {
+      const w = e.where; const locStr = w.kind==='chest'?`${w.base} · ${w.type}`:(w.player?`${w.player} (${w.kind})`:w.kind);
+      grid2.append(el('div',{class:'card'},
+        el('h3',{},el('span',{class:'bigicon'},'🥚'),el('span',{},e.eggName), e.ct>1?` ×${e.ct}`:''),
+        el('div',{class:'sm'},...contentBits(e.species?e:null)),
+        el('div',{class:'sm dim'},locStr)));
+    }
+    s.append(grid2);
+  }
+})();
+
+// ============================================================ BREEDING
+(function(){
+  const s = sections.Breeding;
+  const order = D.breeding.order, tri = D.breeding.tri, N = order.length;
+  const gp = D.breeding.genderPairs;
+  const triIdx=(i,j)=>{ if(i>j)[i,j]=[j,i]; return i*N - i*(i-1)/2 + (j-i); };
+  function childOf(i,j){
+    for (const [a,ga,b,gb,c] of gp){ if((a===i&&b===j)||(a===j&&b===i)) return c; }
+    const c = tri[triIdx(i,j)]; return c<0?null:c;
+  }
+  const disp = n => (palMeta(n)||{}).name || n;
+  const owned = {};
+  for (const p of D.pals){ const k=p.id; if(!(k in D.palMeta))continue; (owned[k]=owned[k]||{F:[],M:[]}); owned[k][p.g==='F'?'F':'M'].push(p); }
+
+  const mkSel = ph => el('select',{},el('option',{value:''},ph),
+    ...order.map((n,i)=>el('option',{value:i}, disp(n)+(owned[n]?` (${owned[n].F.length}♀ ${owned[n].M.length}♂)`:''))));
+
+  // ---- pair -> child, with passive pool notes
+  s.append(el('h2',{},'Pair → child'));
+  const s1=mkSel('Parent 1…'), s2=mkSel('Parent 2…'), res=el('div',{style:'margin:10px 0'});
+  const upd=()=>{ res.innerHTML=''; if(s1.value===''||s2.value==='')return;
+    const i=+s1.value, j=+s2.value;
+    const c=childOf(i,j);
+    res.append(el('div',{},'Child: ', c!=null?palIcon(order[c]):'', ' ',
+      el('span',{class:'result-child'},c==null?'no result':disp(order[c])),
+      c!=null&&owned[order[c]]?el('span',{class:'pill good',style:'margin-left:8px'},'already owned'):''));
+    // passive pool: union of passives on owned parents of these species
+    const pool = new Set();
+    for (const sp of [order[i],order[j]]) for (const g of ['F','M']) for (const pl of (owned[sp]||{F:[],M:[]})[g]) pl.passives.forEach(ps=>pool.add(ps));
+    if (pool.size){
+      res.append(el('div',{class:'sm',style:'margin-top:8px'},'Passive pool from your owned parents (child can only inherit from its two actual parents): ',
+        ...[...pool].map(passivePill)));
+      res.append(el('div',{class:'note'},'Inheritance odds per child: 1 parent passive 40% · 2: 30% · 3: 20% · 4: 10%, plus possible random passives (none 40% · +1 30% · +2 20% · +3 10%). Pick parents whose combined passives are exactly what you want.'));
+    }
+  };
+  s1.addEventListener('change',upd); s2.addEventListener('change',upd);
+  s.append(el('div',{class:'row'},s1,el('span',{},'×'),s2),res);
+
+  // ---- target -> pairs
+  s.append(el('h2',{},'Target → how to breed it'));
+  const st=mkSel('Target pal…'); const onlyOwned=el('select',{},el('option',{value:'own'},'Pairs we own'),el('option',{value:'all'},'All pairs'));
+  const out=el('div',{style:'margin-top:10px'});
+  const updT=()=>{
+    out.innerHTML=''; if(st.value==='')return;
+    const t=+st.value; const rows=[];
+    for(let i=0;i<N;i++) for(let j=i;j<N;j++){ if(tri[triIdx(i,j)]===t) rows.push([i,j,null]); }
+    for (const [a,ga,b,gb,c] of gp) if(c===t) rows.push([a,b,[ga,gb]]);
+    const ownPair=([i,j,g])=>{
+      const A=owned[order[i]], B=owned[order[j]];
+      if(!A||!B) return false;
+      if(i===j) return (A.F.length>0&&A.M.length>0);
+      if(g){ const [ga,gb]=g; return (ga==='F'?A.F:A.M).length>0 && (gb==='F'?B.F:B.M).length>0; }
+      return (A.F.length>0&&B.M.length>0)||(A.M.length>0&&B.F.length>0);
+    };
+    let list = rows.map(r=>({r,own:ownPair(r)}));
+    if(onlyOwned.value==='own') list=list.filter(x=>x.own);
+    list.sort((a,b)=>(b.own?1:0)-(a.own?1:0));
+    if(!list.length){ out.append(el('div',{class:'note'},'No pair we own produces this pal — switch to "All pairs", or use the planner below for a multi-step route.')); return; }
+    const tb=el('table',{},el('thead',{},el('tr',{},el('th',{},'Parent A'),el('th',{},'Parent B'),el('th',{},'Status'))));
+    const body=el('tbody');
+    for (const {r:[i,j,g],own} of list.slice(0,300)){
+      body.append(el('tr',{},
+        el('td',{},palIcon(order[i],'palimg sm2'),' ',disp(order[i])+(g?` ${g[0]==='F'?'♀':'♂'}`:'')),
+        el('td',{},palIcon(order[j],'palimg sm2'),' ',disp(order[j])+(g?` ${g[1]==='F'?'♀':'♂'}`:'')),
+        el('td',{},own?el('span',{class:'pill good'},'✔ breedable now'):el('span',{class:'pill'},'missing parents'))));
+    }
+    tb.append(body); out.append(tb);
+  };
+  st.addEventListener('change',updT); onlyOwned.addEventListener('change',updT);
+  s.append(el('div',{class:'row'},st,onlyOwned),out);
+
+  // ---- multi-step planner
+  s.append(el('h2',{},'Multi-step planner (from what you own)'));
+  const sp=mkSel('Goal pal…'); const pout=el('div',{style:'margin-top:10px'});
+  // BFS/DP over species space
+  function planRoutes(){
+    const steps = new Array(N).fill(Infinity);
+    const via = new Array(N).fill(null);
+    for (let i=0;i<N;i++) if (owned[order[i]] && (owned[order[i]].F.length+owned[order[i]].M.length)>0) steps[i]=0;
+    let changed=true, guard=0;
+    while(changed && guard++<12){
+      changed=false;
+      for(let i=0;i<N;i++){ if(steps[i]===Infinity) continue;
+        for(let j=i;j<N;j++){ if(steps[j]===Infinity) continue;
+          const c=childOf(i,j); if(c==null) continue;
+          const cost=Math.max(steps[i],steps[j])+1;
+          if(cost<steps[c]){ steps[c]=cost; via[c]=[i,j]; changed=true; }
+        }
+      }
+    }
+    return {steps,via};
+  }
+  let routesCache=null;
+  sp.addEventListener('change',()=>{
+    pout.innerHTML=''; if(sp.value==='')return;
+    routesCache = routesCache||planRoutes();
+    const {steps,via}=routesCache;
+    const t=+sp.value;
+    if(steps[t]===0){ pout.append(el('div',{class:'note'},'You already own '+disp(order[t])+'.')); return; }
+    if(!isFinite(steps[t])){ pout.append(el('div',{class:'note'},'Not reachable from your current pals (some pals only come from wild capture or fixed combos).')); return; }
+    pout.append(el('div',{class:'sm',style:'margin-bottom:6px'},`Reachable in ${steps[t]} breeding step(s):`));
+    const listed=new Set();
+    (function expand(n,depth){
+      if(listed.has(n)||steps[n]===0) return;
+      listed.add(n);
+      const [a,b]=via[n];
+      expand(a,depth+1); expand(b,depth+1);
+      pout.append(el('div',{class:'sm',style:'margin:3px 0'},
+        el('span',{class:'pill'},`step ${steps[n]}`),' ',
+        palIcon(order[a],'palimg sm2'),' ',disp(order[a]),
+        steps[a]===0?el('span',{class:'g sm'},' (owned)'):'',' × ',
+        palIcon(order[b],'palimg sm2'),' ',disp(order[b]),
+        steps[b]===0?el('span',{class:'g sm'},' (owned)'):'',' → ',
+        palIcon(order[n],'palimg sm2'),' ',el('b',{},disp(order[n]))));
+    })(t,0);
+  });
+  s.append(el('div',{class:'row'},sp),pout);
+  s.append(el('div',{class:'note'},'Exact 1.0 breeding table (299 pals, gender-specific combos included). Planner finds the fewest generations from pals you own.'));
+})();
+
+// ============================================================ PLAYERS
+(function(){
+  const s = sections.Players;
+  for (const p of [...realPlayers].sort((a,b)=>(b.level||0)-(a.level||0))){
+    const r=p.records||{};
+    const party = D.pals.filter(x=>x.loc==='Party ('+p.name+')');
+    const card = el('div',{class:'card',style:'margin-bottom:14px'});
+    card.append(el('h3',{},'🧑‍🚀 ',el('b',{},p.name),el('span',{class:'dim sm'},`Lv${p.level} · ${p.platform||''}`),
+      el('span',{class:'pill'},`⚗ ${fmt((p.techPoints||0))} tech pts unspent`),
+      el('span',{class:'pill'},`👑 ${fmt(p.bossTechPoints||0)} ancient pts`),
+      p.unusedStatusPoints?el('span',{class:'pill w'},`${p.unusedStatusPoints} status pts unspent`):''));
+    // gear
+    card.append(el('h2',{},'Gear'));
+    const gearGrid = el('div',{});
+    for (const g of (p.gear||[])){
+      const durPct = (g.dur!=null&&g.maxDur)?Math.min(100,g.dur/g.maxDur*100):null;
+      gearGrid.append(el('div',{class:'sm',style:'display:flex;align-items:center;gap:8px;margin:3px 0'},
+        itemIcon(g.id), el('span',{style:'min-width:220px'},g.name+(g.ct>1?` ×${g.ct}`:'')),
+        el('span',{class:'tag'},g.kind),
+        durPct!=null?el('span',{class:'meter',style:'width:110px;margin:0'},el('i',{style:`width:${durPct}%;background:${durPct<25?'var(--bad)':durPct<60?'var(--warn)':'var(--good)'}`})):'',
+        durPct!=null?el('span',{class:'dim sm'},durPct.toFixed(0)+'%'):'',
+        ...(g.passives||[]).map(passivePill)));
+    }
+    if(!(p.gear||[]).length) gearGrid.append(el('div',{class:'note'},'no gear data'));
+    card.append(gearGrid);
+    // party
+    card.append(el('h2',{},'Party'));
+    card.append(el('div',{}, ...party.map(x=>el('span',{class:'pill'},palIcon(x.id,'palimg sm2'),` ${x.nick||x.name} Lv${x.lv}`))));
+    // records
+    card.append(el('h2',{},'Records'));
+    card.append(el('div',{},
+      ...[['captures',r.captures],['paldeck',(p.paldeck||[]).length+' / 299'],['dungeons',r.dungeons],['oil rig',r.oilrig],
+         ['camps taken',r.campsConquered],['predators',r.predatorKills],['fishing',r.fishing],['crafts',r.crafts],
+         ['fast travels',r.fastTravels],['notes',r.notes],['relics',r.relics]]
+        .map(([l,v])=>el('span',{class:'pill'},`${l}: ${typeof v==='string'?v:fmt(v)}`))));
+    s.append(card);
+  }
+})();
+
+// ============================================================ GUIDE
+(function(){
+  const s = sections.Guide;
+  const items = [];
+  const TOWERS = {GrassBoss:'Lily & Lyleen (Free Pal Alliance)', ElectricBoss:'Zoe & Grizzbolt (Rayne Syndicate)',
+    DesertBoss:'Axel & Orserk (Brothers of the Eternal Pyre)', ForestBoss:'Marcus & Faleris (PIDF)',
+    SnowBoss:'Victor & Shadowbeak (PAL Genetic Research)', KingWhaleBoss:'Saya & Selyne (Moonflowers)',
+    IceBoss:'Bjorn & Bastigor (Feybreak)'};
+  const beaten = new Set();
+  for (const p of realPlayers) for (const t of (p.towers||[])) beaten.add(t.replace('BOSS_BATTLE_NAME_',''));
+  const remaining = Object.keys(TOWERS).filter(k=>!beaten.has(k));
+  if (remaining.length)
+    items.push(['🗼', `Tower bosses remaining: ${remaining.map(k=>TOWERS[k]).join(' · ')}`, 'The next big milestone fights.']);
+  else items.push(['🏆','All known tower bosses cleared!','Time for raids, oil rig farming and paldeck completion.']);
+
+  const ready = D.incubators.filter(i=>i.hatchedReady).length;
+  if (ready) items.push(['🐣',`${ready} eggs are fully incubated`, 'Free pals waiting — go crack them. Check the Eggs tab to see what’s inside first.']);
+
+  for (const p of realPlayers){
+    if (p.unusedStatusPoints>0) items.push(['📊',`${p.name} has ${p.unusedStatusPoints} unspent status points`,'Free power — spend them.']);
+    if ((p.techPoints||0)>20) items.push(['⚗️',`${p.name} has ${p.techPoints} unspent tech points`,'Unlock production lines you’re missing.']);
+  }
+
+  const sad = D.pals.filter(p=>p.loc.startsWith('Base')&&((p.san!=null&&p.san<85)||p.sick));
+  if (sad.length) items.push(['🛌',`${sad.length} base workers are unhappy or sick: ${sad.slice(0,5).map(p=>p.nick||p.name).join(', ')}${sad.length>5?'…':''}`,
+    'Better food, hot springs, or shift them to the palbox for a break — details in Care tab.']);
+
+  // paldeck completion: which missing pals are breedable right now
+  const order=D.breeding.order, tri=D.breeding.tri, N=order.length;
+  const triIdx=(i,j)=>{ if(i>j)[i,j]=[j,i]; return i*N-i*(i-1)/2+(j-i); };
+  const ownedSp = new Set(D.pals.map(p=>p.id).filter(id=>id in D.palMeta));
+  const deckUnion = new Set(); for (const p of realPlayers) for(const d of (p.paldeck||[])) deckUnion.add(d);
+  const missing = order.filter(n=>!deckUnion.has(n));
+  const breedableMissing = [];
+  const oi = order.map((n,i)=>ownedSp.has(n)?i:-1).filter(i=>i>=0);
+  for (const m of missing){
+    const t = order.indexOf(m);
+    outer: for (const i of oi) for (const j of oi){ if (tri[triIdx(i,j)]===t){ breedableMissing.push([m,order[i],order[j]]); break outer; } }
+  }
+  items.push(['📖',`Paldeck: ${deckUnion.size} / 299 as a team (${missing.length} missing)`,
+    breedableMissing.length? `You could add ${breedableMissing.length} right now by breeding, e.g. ${breedableMissing.slice(0,6).map(([m,a,b])=>`${(palMeta(m)||{}).name||m} (${(palMeta(a)||{}).name||a} × ${(palMeta(b)||{}).name||b})`).join(' · ')}` : 'None of the missing ones are breedable from current pals — capture new species first.']);
+
+  const r0 = realPlayers.map(p=>(p.records||{}).oilrig||0).reduce((a,b)=>a+b,0);
+  if (!r0) items.push(['🛢️','Oil rig never cleared','Late-game loot: crude oil, plasteel and legendary schematics.']);
+
+  const relics = Math.max(...realPlayers.map(p=>(p.records||{}).relics||0));
+  items.push(['🗿',`Lifmunk Effigies: best is ${relics} collected`,'More effigies = better capture rate for everyone chasing paldeck entries.']);
+
+  const luckyCount = D.pals.filter(p=>p.lucky).length;
+  if (luckyCount<3) items.push(['✨',`Only ${luckyCount} lucky pals owned`,'Keep an ear out for the sparkle sound — lucky pals make great breeding stock (Lucky passive).']);
+
+  const card = el('div',{class:'card'});
+  for (const [ic,title,sub] of items) card.append(el('div',{class:'guide-item'},
+    el('div',{class:'ic'},ic), el('div',{},el('b',{},title),el('div',{class:'sm dim'},sub))));
+  s.append(el('h2',{},'Suggested next steps'),card);
+  s.append(el('div',{class:'note'},'Computed from the save: tower flags, paldeck union, breeding table, worker condition, unspent points.'));
+})();
+
+show(location.hash&&TABS.includes(location.hash.slice(1))?location.hash.slice(1):'Overview');
+</script>
+</body>
+</html>
