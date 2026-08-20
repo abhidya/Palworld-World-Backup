@@ -1,5 +1,5 @@
 {
-  "snapshot_timestamp": "2026-08-19T22:05:23-0700",
+  "snapshot_timestamp": "2026-08-19T22:06:34-0700",
   "reason": "periodic during active play (1 players seen)",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
   "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
@@ -11,28 +11,28 @@
   "players_at_snapshot": 1,
   "snapshot_boundary": "server running (1 players); REST /v1/api/save accepted",
   "file_count": 8,
-  "total_bytes": 2278745,
+  "total_bytes": 2275219,
   "critical_file_hashes": {
-    "Level.sav": "53d9ad9e720c1444da6bb82b7ef51bbb99ccfc033b2f63c0c3a2d496ae8a04cf",
-    "LevelMeta.sav": "f8abaff8e701f39b8b6f9f6a84a8767213d9a48c4b1bb612882a9bf955db7dd1",
+    "Level.sav": "f65a4531ad8fd4fdc9dea5be1244da3a2a4a05df47d05b040170b2fd5c1c8ed7",
+    "LevelMeta.sav": "2322ba51c57bfb03dfee2546f6e795ed80ad2efeaa177f01ac78998bfcfe6a45",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74"
   },
   "player_save_hashes": {
-    "Players\\00000000000000000000000000000001.sav": "811f4481b609d78d435845d436ea07478ab7fd63eaaf7745ed9953806018dab7",
-    "Players\\54001E88000000000000000000000000.sav": "6d62263a68715f5020e02b660b3901ec038cecd3fe905d616f51ab121c19b731",
+    "Players\\00000000000000000000000000000001.sav": "607edced1b324c21c1c02659bc5a5cbc9891432ac6d562293bcb04eacb9fc6b7",
+    "Players\\54001E88000000000000000000000000.sav": "ae4ab6a3c2f0b326d887a53ea312c9632855c28ece2307c7936e5b5e7314a60d",
     "Players\\54001E88000000000000000000000000_dps.sav": "74d94b90e3a64ecf1f5ccedce0d70b9fc05661256b6efff3ca717b7aa3b02d90",
-    "Players\\9C8317FC000000000000000000000000.sav": "c0231eb9f439f0f15e0fcaa421f3c16bff10e5797e412e517bfddae39279b4e1",
-    "Players\\D87864F3000000000000000000000000.sav": "3fe5316fe28509700dfeeddeafae86c1efc6a209e136ecfe4886bdbb17e3bbb7"
+    "Players\\9C8317FC000000000000000000000000.sav": "13b378eb9e1405785b1933ae37003c7306bc506a49425524121a99e32cf08b72",
+    "Players\\D87864F3000000000000000000000000.sav": "ef536ff1d6cd7cb50f8ecdbe191814e5238833943c2e07cfb9e6705a6693dec7"
   },
   "all_file_hashes": {
-    "Level.sav": "53d9ad9e720c1444da6bb82b7ef51bbb99ccfc033b2f63c0c3a2d496ae8a04cf",
-    "LevelMeta.sav": "f8abaff8e701f39b8b6f9f6a84a8767213d9a48c4b1bb612882a9bf955db7dd1",
+    "Level.sav": "f65a4531ad8fd4fdc9dea5be1244da3a2a4a05df47d05b040170b2fd5c1c8ed7",
+    "LevelMeta.sav": "2322ba51c57bfb03dfee2546f6e795ed80ad2efeaa177f01ac78998bfcfe6a45",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74",
-    "Players\\00000000000000000000000000000001.sav": "811f4481b609d78d435845d436ea07478ab7fd63eaaf7745ed9953806018dab7",
-    "Players\\54001E88000000000000000000000000.sav": "6d62263a68715f5020e02b660b3901ec038cecd3fe905d616f51ab121c19b731",
+    "Players\\00000000000000000000000000000001.sav": "607edced1b324c21c1c02659bc5a5cbc9891432ac6d562293bcb04eacb9fc6b7",
+    "Players\\54001E88000000000000000000000000.sav": "ae4ab6a3c2f0b326d887a53ea312c9632855c28ece2307c7936e5b5e7314a60d",
     "Players\\54001E88000000000000000000000000_dps.sav": "74d94b90e3a64ecf1f5ccedce0d70b9fc05661256b6efff3ca717b7aa3b02d90",
-    "Players\\9C8317FC000000000000000000000000.sav": "c0231eb9f439f0f15e0fcaa421f3c16bff10e5797e412e517bfddae39279b4e1",
-    "Players\\D87864F3000000000000000000000000.sav": "3fe5316fe28509700dfeeddeafae86c1efc6a209e136ecfe4886bdbb17e3bbb7"
+    "Players\\9C8317FC000000000000000000000000.sav": "13b378eb9e1405785b1933ae37003c7306bc506a49425524121a99e32cf08b72",
+    "Players\\D87864F3000000000000000000000000.sav": "ef536ff1d6cd7cb50f8ecdbe191814e5238833943c2e07cfb9e6705a6693dec7"
   },
   "config_redacted_keys": [
     "AdminPassword",
@@ -40,6 +40,6 @@
     "ServerPassword"
   ],
   "git_commit": null,
-  "git_commit_note": "see tag snapshot/20260819-220523 and rig state palworld-backup.json",
-  "snapshot_tag": "snapshot/20260819-220523"
+  "git_commit_note": "see tag snapshot/20260819-220634 and rig state palworld-backup.json",
+  "snapshot_tag": "snapshot/20260819-220634"
 }
