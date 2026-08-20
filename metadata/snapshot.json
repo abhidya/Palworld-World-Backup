@@ -1,5 +1,5 @@
 {
-  "snapshot_timestamp": "2026-08-20T10:29:09-0700",
+  "snapshot_timestamp": "2026-08-20T10:31:53-0700",
   "reason": "periodic idle (server up, 0 players)",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
   "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
@@ -11,28 +11,28 @@
   "players_at_snapshot": 0,
   "snapshot_boundary": "server running (0 players); REST /v1/api/save accepted",
   "file_count": 8,
-  "total_bytes": 2239696,
+  "total_bytes": 2239358,
   "critical_file_hashes": {
-    "Level.sav": "f1b69f0ea402b027fe35e17989c0e05cfea3548015bd0288cb1850ff94cb1721",
-    "LevelMeta.sav": "1783614bfe39eeee35be7af76d7f12119e580f9a7a9d6bee0203126a8f1c9fe2",
+    "Level.sav": "c74a715e33aa2c71a1fb825a22dcf385e84e63479babb17df46690685484fa7d",
+    "LevelMeta.sav": "818385b137c0cc9105079a5abaf390a04f641c68b7f18dee127cb0c7257fd3ec",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74"
   },
   "player_save_hashes": {
-    "Players\\00000000000000000000000000000001.sav": "603b37a942ba8adea5645b29b2da52d7a4fe1eac72aad4dbd651fe21ec50c340",
-    "Players\\54001E88000000000000000000000000.sav": "5cdb906a2072cc6a592daece27bc4c4d4c8e781c39a6f5e07123dc058e7ab827",
+    "Players\\00000000000000000000000000000001.sav": "357d8f5d07d3f370fe6d75a26ccb09d29cc4159619256a970b172c40fd15c1e0",
+    "Players\\54001E88000000000000000000000000.sav": "72f06cc520a1403c2a8b7b6c4694450330f6f24d53b096791713956cd83a1b16",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "03b64b9ecab48700f5e293a90ca71cc9a4baddfd95bb691a2ea3c30e6745dde6",
-    "Players\\D87864F3000000000000000000000000.sav": "ac77b85b892e41ccbf9fe076b8ec30a2dfd04d92371a89aa340738c1e37cb3a1"
+    "Players\\9C8317FC000000000000000000000000.sav": "e0eae676ee8217c8af14e9be532dd45bf6f3c9a80499f3eddd6a73ac49287ada",
+    "Players\\D87864F3000000000000000000000000.sav": "3bfb9f9240e9013abdc11b3df2104729525e30fb231b6e8102e0d880e5a922ba"
   },
   "all_file_hashes": {
-    "Level.sav": "f1b69f0ea402b027fe35e17989c0e05cfea3548015bd0288cb1850ff94cb1721",
-    "LevelMeta.sav": "1783614bfe39eeee35be7af76d7f12119e580f9a7a9d6bee0203126a8f1c9fe2",
+    "Level.sav": "c74a715e33aa2c71a1fb825a22dcf385e84e63479babb17df46690685484fa7d",
+    "LevelMeta.sav": "818385b137c0cc9105079a5abaf390a04f641c68b7f18dee127cb0c7257fd3ec",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74",
-    "Players\\00000000000000000000000000000001.sav": "603b37a942ba8adea5645b29b2da52d7a4fe1eac72aad4dbd651fe21ec50c340",
-    "Players\\54001E88000000000000000000000000.sav": "5cdb906a2072cc6a592daece27bc4c4d4c8e781c39a6f5e07123dc058e7ab827",
+    "Players\\00000000000000000000000000000001.sav": "357d8f5d07d3f370fe6d75a26ccb09d29cc4159619256a970b172c40fd15c1e0",
+    "Players\\54001E88000000000000000000000000.sav": "72f06cc520a1403c2a8b7b6c4694450330f6f24d53b096791713956cd83a1b16",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "03b64b9ecab48700f5e293a90ca71cc9a4baddfd95bb691a2ea3c30e6745dde6",
-    "Players\\D87864F3000000000000000000000000.sav": "ac77b85b892e41ccbf9fe076b8ec30a2dfd04d92371a89aa340738c1e37cb3a1"
+    "Players\\9C8317FC000000000000000000000000.sav": "e0eae676ee8217c8af14e9be532dd45bf6f3c9a80499f3eddd6a73ac49287ada",
+    "Players\\D87864F3000000000000000000000000.sav": "3bfb9f9240e9013abdc11b3df2104729525e30fb231b6e8102e0d880e5a922ba"
   },
   "config_redacted_keys": [
     "AdminPassword",
@@ -40,6 +40,6 @@
     "ServerPassword"
   ],
   "git_commit": null,
-  "git_commit_note": "see tag snapshot/20260820-102909 and rig state palworld-backup.json",
-  "snapshot_tag": "snapshot/20260820-102909"
+  "git_commit_note": "see tag snapshot/20260820-103153 and rig state palworld-backup.json",
+  "snapshot_tag": "snapshot/20260820-103153"
 }
