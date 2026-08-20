@@ -1,6 +1,6 @@
 {
-  "snapshot_timestamp": "2026-08-20T01:21:02-0700",
-  "reason": "player logged off (1 -> 0)",
+  "snapshot_timestamp": "2026-08-20T01:22:13-0700",
+  "reason": "periodic idle (server up, 0 players)",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
   "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
   "source_path": "/Users/mannybhidya/PalworldServer/palworld/Pal/Saved/SaveGames/0/64EE4B2C4C81F4912BF109850820D9BA",
@@ -11,28 +11,28 @@
   "players_at_snapshot": 0,
   "snapshot_boundary": "server running (0 players); REST /v1/api/save accepted",
   "file_count": 8,
-  "total_bytes": 2299189,
+  "total_bytes": 2299986,
   "critical_file_hashes": {
-    "Level.sav": "a64b0149c74297ff009d07eca5a2489c4ef1c1826e4adfd48ea76e807823f4b8",
-    "LevelMeta.sav": "f6a3b4dfbe80455124bf16c45e0fe0025839970911fe37cf782cc561350b5234",
+    "Level.sav": "d672df002306ee6e6c71ffb48a0b0778442313217d97bd2cff7975e2b9063329",
+    "LevelMeta.sav": "4947276a21ce86906c10cd8696ef6d3eb5bd4bf45424f2143f507b372561d8d2",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74"
   },
   "player_save_hashes": {
-    "Players\\00000000000000000000000000000001.sav": "c9bc3afddf0c103f24766a441be5baa7a36d6d5bfb423606aa2567612bb6da37",
-    "Players\\54001E88000000000000000000000000.sav": "edefc408b07f8c5c962cedd60dca16a3b6c5bfb9242d4a4f1bab272e2ffb97d7",
+    "Players\\00000000000000000000000000000001.sav": "c97a66c3e56a54f2ff7a10ac4438fece590ac3b18816f26ea21ec4fbab125ed5",
+    "Players\\54001E88000000000000000000000000.sav": "374e41cc0894870c25fc3f36a6d0adbc52106e8488f2914d827008bde5dbee6b",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "b6102af04793c42f4e3643969c41c15be87dd11f5f9bee0c8c1cbc0e8eeb108e",
-    "Players\\D87864F3000000000000000000000000.sav": "ba2a957b1d0683c1b128fdb66e942773a37d61dbb17f8016872cb74e87b64e94"
+    "Players\\9C8317FC000000000000000000000000.sav": "a60dab80e11991bdcc543465078c0439cf1916c870cbbddadc8c94e3c7239c1c",
+    "Players\\D87864F3000000000000000000000000.sav": "217b6586315ff7f4e232f06ec405281761f27f9581449d4afa1f85f2dd808203"
   },
   "all_file_hashes": {
-    "Level.sav": "a64b0149c74297ff009d07eca5a2489c4ef1c1826e4adfd48ea76e807823f4b8",
-    "LevelMeta.sav": "f6a3b4dfbe80455124bf16c45e0fe0025839970911fe37cf782cc561350b5234",
+    "Level.sav": "d672df002306ee6e6c71ffb48a0b0778442313217d97bd2cff7975e2b9063329",
+    "LevelMeta.sav": "4947276a21ce86906c10cd8696ef6d3eb5bd4bf45424f2143f507b372561d8d2",
     "WorldOption.sav": "d7ea21312d0225bf5ebe32d03f5dcee1bec26333e9f492311b9aaecaf023ae74",
-    "Players\\00000000000000000000000000000001.sav": "c9bc3afddf0c103f24766a441be5baa7a36d6d5bfb423606aa2567612bb6da37",
-    "Players\\54001E88000000000000000000000000.sav": "edefc408b07f8c5c962cedd60dca16a3b6c5bfb9242d4a4f1bab272e2ffb97d7",
+    "Players\\00000000000000000000000000000001.sav": "c97a66c3e56a54f2ff7a10ac4438fece590ac3b18816f26ea21ec4fbab125ed5",
+    "Players\\54001E88000000000000000000000000.sav": "374e41cc0894870c25fc3f36a6d0adbc52106e8488f2914d827008bde5dbee6b",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "b6102af04793c42f4e3643969c41c15be87dd11f5f9bee0c8c1cbc0e8eeb108e",
-    "Players\\D87864F3000000000000000000000000.sav": "ba2a957b1d0683c1b128fdb66e942773a37d61dbb17f8016872cb74e87b64e94"
+    "Players\\9C8317FC000000000000000000000000.sav": "a60dab80e11991bdcc543465078c0439cf1916c870cbbddadc8c94e3c7239c1c",
+    "Players\\D87864F3000000000000000000000000.sav": "217b6586315ff7f4e232f06ec405281761f27f9581449d4afa1f85f2dd808203"
   },
   "config_redacted_keys": [
     "AdminPassword",
@@ -40,6 +40,6 @@
     "ServerPassword"
   ],
   "git_commit": null,
-  "git_commit_note": "see tag snapshot/20260820-012102 and rig state palworld-backup.json",
-  "snapshot_tag": "snapshot/20260820-012102"
+  "git_commit_note": "see tag snapshot/20260820-012213 and rig state palworld-backup.json",
+  "snapshot_tag": "snapshot/20260820-012213"
 }
