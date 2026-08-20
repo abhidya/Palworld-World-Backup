@@ -365,6 +365,9 @@ for pf in player_files:
     except Exception as ex:
         print("  ! failed", pf, ex)
         continue
+    if "SaveData" not in g.properties:  # e.g. *_dps.sav pal-storage sidecars
+        print("  ! skipping (no SaveData):", os.path.basename(pf))
+        continue
     sd = g.properties["SaveData"]["value"]
     uid = uid_str(V(sd.get("PlayerUId")))
     p = players.setdefault(uid, {"uid": uid, "name": os.path.basename(pf)[:8]})

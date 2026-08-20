@@ -9,3 +9,9 @@
 *.tmp
 __pycache__/
 .DS_Store
+
+# Dashboard toolchain build outputs — the committed copies live in docs/.
+/tools/dashboard/data.js
+/tools/dashboard/trends.js
+/tools/dashboard/*cache*.json
+/tools/dashboard/.update.lock
