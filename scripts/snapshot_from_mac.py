@@ -107,12 +107,6 @@ def main() -> int:
         sys.exit(f"FATAL: live world dir not found: {live_world}")
 
     try:
-        api_post("/save", admin_password)
-        time.sleep(2)  # let the flush land on disk before we copy
-    except urllib.error.URLError as e:
-        print(f"WARNING: could not force-save via REST API ({e}); snapshotting on-disk state as-is", file=sys.stderr)
-
-    try:
         info = api_get("/info", admin_password)
         players = api_get("/players", admin_password)
         players_now = len(players.get("players", []))
@@ -128,7 +122,38 @@ def main() -> int:
     manifest_path = REPO / "metadata" / "snapshot.json"
     prev = json.loads(manifest_path.read_text()) if manifest_path.is_file() else None
     players_prev = prev.get("players_at_snapshot") if prev else None
+
+    # The launchd job polls every 60s so join/leave is caught within a
+    # minute, but a forced save + commit every poll bloats the repo
+    # (~1.4k commits and ~3GB of LFS objects per day). Only snapshot when
+    # the player count changed or the last snapshot has gone stale.
+    ACTIVE_CEILING = 15 * 60       # active play: snapshot every 15 min
+    IDLE_CEILING = 6 * 60 * 60     # idle server: heartbeat every 6 h
+    age = None
+    if prev and players_prev is not None and players_now == players_prev:
+        try:
+            from datetime import datetime
+            prev_ts = datetime.strptime(prev["snapshot_timestamp"], "%Y-%m-%dT%H:%M:%S%z")
+            age = time.time() - prev_ts.timestamp()
+        except (KeyError, ValueError):
+            pass  # unreadable manifest timestamp -> snapshot to be safe
+        if age is not None:
+            if players_now and age < ACTIVE_CEILING:
+                print(f"No player change, last snapshot {age/60:.1f} min ago; skipping.")
+                return 0
+            if not players_now and age < IDLE_CEILING:
+                print(f"Server idle, last snapshot {age/3600:.1f} h ago; skipping.")
+                return 0
+
     reason = reason_for(players_now, players_prev)
+    if age is not None and not players_now and age >= IDLE_CEILING:
+        reason = f"idle ceiling: server up but unplayed for {age/3600:.1f} h"
+
+    try:
+        api_post("/save", admin_password)
+        time.sleep(2)  # let the flush land on disk before we copy
+    except urllib.error.URLError as e:
+        print(f"WARNING: could not force-save via REST API ({e}); snapshotting on-disk state as-is", file=sys.stderr)
 
     dest_world = REPO / "world" / "current"
     dest_world.mkdir(parents=True, exist_ok=True)
