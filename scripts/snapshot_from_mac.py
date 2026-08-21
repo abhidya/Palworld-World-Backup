@@ -127,8 +127,8 @@ def main() -> int:
     # minute, but a forced save + commit every poll bloats the repo
     # (~1.4k commits and ~3GB of LFS objects per day). Only snapshot when
     # the player count changed or the last snapshot has gone stale.
-    ACTIVE_CEILING = 15 * 60       # active play: snapshot every 15 min
-    IDLE_CEILING = 6 * 60 * 60     # idle server: heartbeat every 6 h
+    ACTIVE_CEILING = 60 * 60       # active play: snapshot hourly (logoff catches session end)
+    IDLE_CEILING = 24 * 60 * 60    # idle server: daily heartbeat proves the pipeline works
     age = None
     if prev and players_prev is not None and players_now == players_prev:
         try:
