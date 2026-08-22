@@ -122,6 +122,13 @@ summary{cursor:pointer;color:var(--ink2)}
   .bar .bv{width:64px}
   th,td{padding:6px 8px}
 }
+
+.tl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-top:14px}
+.tl-card{border:1px solid var(--line,#2a2a2a);border-radius:6px;overflow:hidden;background:var(--panel,#161616)}
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--line,#2a2a2a)}
+.tl-card video{display:block;width:100%;background:#0b0f14}
+.tl-stats{display:flex;flex-wrap:wrap;gap:12px;padding:9px 12px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--dim,#8a8a8a)}
+.tl-stats .up{color:#6fbf8b}.tl-stats .dn{color:#e06b6b}
 </style>
 </head>
 <body>
@@ -212,7 +219,7 @@ $('#hdr-tiles').append(...[
   .map(([l,v])=>el('div',{class:'tile'},el('div',{class:'v'},String(v)),el('div',{class:'l'},l))));
 
 // ---------- tabs ----------
-const TABS = ['Overview','Trends','Bases','Inventory','Recipes','Pals','Care','Eggs','Breeding','Players','Guide'];
+const TABS = ['Overview','Trends','Bases','Timelapse','Inventory','Recipes','Pals','Care','Eggs','Breeding','Players','Guide'];
 const sections = {};
 for (const t of TABS) {
   const b = el('button',{onclick:()=>show(t)},t); b.id='nb-'+t;
@@ -1011,6 +1018,38 @@ function show(t){ for(const x of TABS){ sections[x].classList.toggle('on',x===t)
     el('div',{class:'ic'},ic), el('div',{},el('b',{},title),el('div',{class:'sm dim'},sub))));
   s.append(el('h2',{},'Suggested next steps'),card);
   s.append(el('div',{class:'note'},'Computed from the save: tower flags, paldeck union, breeding table, worker condition, unspent points.'));
+})();
+
+
+// ============================================================ TIMELAPSE
+// Base construction replays rendered from the save-snapshot history.
+// Driven entirely by timelapse/manifest.json so newly-discovered bases
+// appear here automatically — this block never needs editing.
+(function(){
+  const s = sections.Timelapse;
+  s.append(el('h2',{},'Base construction timelapses'));
+  const note = el('div',{class:'note'},'Rendered from every archived save snapshot. Geometry is the game’s own extracted meshes where available; pieces without an extracted mesh fall back to dimensioned proxies.');
+  s.append(note);
+  const grid = el('div',{class:'tl-grid'});
+  s.append(grid);
+  fetch('timelapse/manifest.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(man=>{
+    const rows = Object.entries(man).sort((a,b)=>(b[1].structures||0)-(a[1].structures||0));
+    if(!rows.length){ grid.append(el('div',{class:'note dim'},'No timelapses rendered yet.')); return; }
+    for(const [id,m] of rows){
+      const when = (t)=> t? new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+      const card = el('div',{class:'tl-card'},
+        el('div',{class:'tl-head'},
+          el('b',{},m.name||id),
+          el('span',{class:'sm dim'}, `${when(m.t0)} – ${when(m.t1)}`)),
+        el('video',{src:'timelapse/'+id+'.mp4', controls:'', loop:'', muted:'', playsinline:'', preload:'metadata'}),
+        el('div',{class:'tl-stats'},
+          el('span',{},fmt(m.structures)+' structures'),
+          el('span',{},fmt(m.steps)+' build steps'),
+          m.built!=null?el('span',{class:'up'},'+'+fmt(m.built)+' built'):null,
+          m.removed!=null?el('span',{class:'dn'},'−'+fmt(m.removed)+' removed'):null));
+      grid.append(card);
+    }
+  }).catch(()=>{ grid.append(el('div',{class:'note dim'},'timelapse/manifest.json not found — run scripts/update_timelapse.py.')); });
 })();
 
 show(location.hash&&TABS.includes(location.hash.slice(1))?location.hash.slice(1):'Overview');
