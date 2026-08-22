@@ -147,7 +147,32 @@ They are supplied only by the live host's own
 `PalWorldSettings.ini`. The backup engine reads `AdminPassword` from that file at
 runtime to authenticate to the REST API — it is never stored in this repo, in rig
 state, or in any log. A snapshot **aborts** rather than commit if any known
-secret value is found in the staged tree.
+secret value is found in the staged tree, `.sav` files included.
+
+### WorldOption.sav carries credentials too — and it wins
+
+`WorldOption.sav` keeps its own copy of `AdminPassword` / `ServerPassword`, and on
+this dedicated server **it overrides `PalWorldSettings.ini`**. Verified: after
+rotating both values in `.env` and recreating the container, the regenerated
+`.ini` held the new pair while the server still authenticated the *old* one,
+because the save had not been touched.
+
+Two consequences for restores:
+
+1. The committed `world/current/WorldOption.sav` is **sanitized** — its three
+   credential fields hold `<REDACTED:supplied-locally>`. Restoring it verbatim
+   would set the live server's password to that literal string.
+2. So after any restore, **delete `WorldOption.sav` from the restored world
+   directory before starting the server**. The server recreates it from
+   `PalWorldSettings.ini`, which is where your real credentials live:
+
+```bash
+rm "$SAVE_ROOT/$WORLD_ID/WorldOption.sav"   # then start the container
+```
+
+Changing a password means changing it in `WorldOption.sav` as well (or deleting
+the file and letting the server regenerate it). Editing `.env` or the `.ini`
+alone has **no effect** while that save exists.
 
 ---
 

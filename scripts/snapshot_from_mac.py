@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -32,8 +33,77 @@ SAVE_ROOT = SERVER_DIR / "palworld" / "Pal" / "Saved" / "SaveGames" / "0"
 LIVE_CONFIG_DIR = SERVER_DIR / "palworld" / "Pal" / "Saved" / "Config" / "LinuxServer"
 WORLD_ID = "64EE4B2C4C81F4912BF109850820D9BA"
 API_BASE = "http://127.0.0.1:8212/v1/api"
-REDACTED = '"<REDACTED:supplied-locally>"'
+PLACEHOLDER = "<REDACTED:supplied-locally>"
+REDACTED = f'"{PLACEHOLDER}"'
 SECRET_KEYS = ("AdminPassword", "ServerPassword", "RCONPassword", "BanListURL")
+# WorldOption.sav keeps its own copy of the credentials the .ini holds, so the
+# repo copy gets the same placeholder treatment.
+SAVE_SECRET_KEYS = ("AdminPassword", "ServerPassword", "BanListURL")
+
+# palworld_save_tools/ooz only exist in the dashboard venv, and launchd runs
+# this script under /usr/bin/python3, so every .sav operation is shelled out to
+# that interpreter. The library logs to stdout, so the helper never writes
+# results there - they go to files, or (for secrets) come in over stdin.
+SAVE_TOOLS_PYTHON = SERVER_DIR / "dashboard-venv" / "bin" / "python"
+SAV_HELPER = r'''
+import json
+import sys
+
+from palworld_save_tools.gvas import GvasFile
+from palworld_save_tools.paltypes import PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES
+from palworld_save_tools.palsav import decompress_sav_to_gvas, compress_gvas_to_sav
+
+mode = sys.argv[1]
+
+if mode == "sanitize":
+    src, dest, placeholder, keys = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5:]
+    raw = open(src, "rb").read()
+    if raw[8:11] != b"PlZ":
+        sys.exit("refusing to re-encode %r save %s" % (raw[8:11], src))
+    gvas_bytes, _ = decompress_sav_to_gvas(raw)
+    gvas = GvasFile.read(gvas_bytes, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+    settings = gvas.properties["OptionWorldData"]["value"]["Settings"]["value"]
+    missing = [k for k in keys if k not in settings]
+    if missing:
+        sys.exit("settings keys absent from save: " + ",".join(missing))
+    for key in keys:
+        settings[key]["value"] = placeholder
+    # compress_gvas_to_sav() picks its compressor from save_type, and this build
+    # reads 0x31 as Oodle (whose compress() is unavailable) even for a PlZ file.
+    # 0x32, double zlib, is the PlZ mode its writer supports and the game reads.
+    blob = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), 0x32)
+    # Prove the re-encode is readable and actually redacted before it lands.
+    check = GvasFile.read(
+        decompress_sav_to_gvas(blob)[0], PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES
+    )
+    written = check.properties["OptionWorldData"]["value"]["Settings"]["value"]
+    if any(written[k]["value"] != placeholder for k in keys):
+        sys.exit("re-encoded save did not keep the placeholders")
+    with open(dest, "wb") as fh:
+        fh.write(blob)
+    sys.exit(0)
+
+if mode == "scan":
+    result, paths = sys.argv[2], sys.argv[3:]
+    probes = []
+    for token in sys.stdin.read().split():
+        secret = bytes.fromhex(token)
+        probes += [secret, secret.decode("utf-8", "replace").encode("utf-16-le")]
+    leaks, errors = [], []
+    for path in paths:
+        try:
+            plain, _ = decompress_sav_to_gvas(open(path, "rb").read())
+        except Exception as e:  # a save we cannot read is the caller's problem
+            errors.append([path, repr(e)[:200]])
+            continue
+        if any(p in plain for p in probes):
+            leaks.append(path)
+    with open(result, "w") as fh:
+        json.dump({"leaks": leaks, "errors": errors}, fh)
+    sys.exit(0)
+
+sys.exit("unknown helper mode " + mode)
+'''
 
 
 def load_env() -> dict[str, str]:
@@ -72,6 +142,45 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: f.read(1 << 20), b""):
             d.update(block)
     return d.hexdigest()
+
+
+def run_sav_helper(args: list[str], stdin: str = "") -> None:
+    """Run SAV_HELPER under the save-tools interpreter. Raises RuntimeError on
+    failure; stdout is discarded because the library logs onto it."""
+    if not SAVE_TOOLS_PYTHON.is_file():
+        raise RuntimeError(f"save-tools interpreter missing: {SAVE_TOOLS_PYTHON}")
+    proc = subprocess.run(
+        [str(SAVE_TOOLS_PYTHON), "-c", SAV_HELPER, *args],
+        input=stdin, capture_output=True, text=True, timeout=300,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip()[-400:] or f"helper exit {proc.returncode}")
+
+
+def sanitize_world_option(src: Path, dest: Path) -> None:
+    """Write the repo's copy of WorldOption.sav with the credential fields
+    replaced by the same placeholder the .ini uses. `src` is the live save and
+    is only ever read - the sanitized re-encode lands on `dest`."""
+    tmp = dest.parent / f".{dest.name}.sanitizing"
+    try:
+        run_sav_helper(["sanitize", str(src), str(tmp), PLACEHOLDER, *SAVE_SECRET_KEYS])
+        tmp.replace(dest)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def scan_saves(paths: list[Path], secret_values: set[str]) -> tuple[list[str], list[str]]:
+    """Decompress .sav files and look for real secret values in the plaintext.
+    Secrets are handed over on stdin, never on the command line. Returns
+    (saves that leaked, notes about saves that could not be decoded)."""
+    if not paths or not secret_values:
+        return [], []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = Path(tmpdir) / "scan.json"
+        probes = "\n".join(v.encode().hex() for v in sorted(secret_values))
+        run_sav_helper(["scan", str(result), *[str(p) for p in paths]], stdin=probes)
+        data = json.loads(result.read_text())
+    return data["leaks"], [f"{p}: {e}" for p, e in data["errors"]]
 
 
 def sanitize_ini(text: str, secret_values: set[str]) -> str:
@@ -157,8 +266,15 @@ def main() -> int:
 
     dest_world = REPO / "world" / "current"
     dest_world.mkdir(parents=True, exist_ok=True)
-    for name in ("Level.sav", "LevelMeta.sav", "WorldOption.sav"):
+    for name in ("Level.sav", "LevelMeta.sav"):
         shutil.copy2(live_world / name, dest_world / name)
+    # WorldOption.sav carries AdminPassword/ServerPassword/BanListURL in
+    # plaintext, so the repo gets a redacted re-encode rather than a copy. If
+    # that fails we abort: better no snapshot than an unsanitized one.
+    try:
+        sanitize_world_option(live_world / "WorldOption.sav", dest_world / "WorldOption.sav")
+    except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+        sys.exit(f"FATAL: could not sanitize WorldOption.sav ({e}); refusing to snapshot")
     dest_players = dest_world / "Players"
     dest_players.mkdir(exist_ok=True)
     live_players = live_world / "Players"
@@ -217,15 +333,33 @@ def main() -> int:
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
     # Safety net: refuse to commit if any real secret value leaked anywhere in the staged tree.
+    # .sav files are compressed GVAS, so they are decoded and scanned in one
+    # batched helper run; a save that will not decode cannot be proven clean,
+    # so it blocks the commit instead of slipping through unread.
     secret_values = {v for v in (admin_password, server_password) if v}
+    saves = []
     for path in (REPO / "world", REPO / "server-config", manifest_path):
         for f in ([path] if path.is_file() else path.rglob("*")):
-            if not f.is_file() or f.suffix == ".sav":
+            if not f.is_file():
+                continue
+            if f.suffix == ".sav":
+                saves.append(f)
                 continue
             text = f.read_text(errors="ignore")
             for secret in secret_values:
                 if secret in text:
                     sys.exit(f"FATAL: secret leaked into {f}; aborting commit")
+
+    try:
+        leaked, undecodable = scan_saves(saves, secret_values)
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as e:
+        sys.exit(f"FATAL: could not scan saves for secrets ({e}); aborting commit")
+    for note in undecodable:
+        print(f"WARNING: could not decode save for scanning: {note}", file=sys.stderr)
+    if undecodable:
+        sys.exit("FATAL: undecodable save(s) cannot be proven secret-free; aborting commit")
+    if leaked:
+        sys.exit(f"FATAL: secret leaked into {leaked[0]}; aborting commit")
 
     subprocess.run(["git", "-C", str(REPO), "add", "world/current", "server-config", "metadata/snapshot.json"], check=True)
     diff = subprocess.run(["git", "-C", str(REPO), "diff", "--cached", "--quiet"])
