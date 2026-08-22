@@ -11,7 +11,7 @@
  "16fca097": {
   "name": "Wooden Camp",
   "structures": 979,
-  "steps": 20,
+  "steps": 23,
   "t0": 1785211174,
   "t1": 1787268757,
   "built": 223,
@@ -19,12 +19,12 @@
  },
  "5fed0024": {
   "name": "Lost Camp",
-  "structures": 80,
-  "steps": 13,
+  "structures": 89,
+  "steps": 16,
   "t0": 1785211174,
   "t1": 1786491100,
-  "built": 55,
-  "removed": 14
+  "built": 64,
+  "removed": 23
  },
  "de44d9f4": {
   "name": "Stone Works",
