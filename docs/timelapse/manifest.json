@@ -1,25 +1,25 @@
 {
  "07f13218": {
   "name": "Glass Tower",
-  "structures": 2136,
+  "structures": 2189,
   "steps": 98,
   "t0": 1786878184,
   "t1": 1787268757,
-  "built": 819,
+  "built": 821,
   "removed": 279
  },
  "16fca097": {
   "name": "Wooden Camp",
-  "structures": 979,
+  "structures": 982,
   "steps": 23,
   "t0": 1785211174,
   "t1": 1787268757,
   "built": 223,
-  "removed": 115
+  "removed": 118
  },
  "5fed0024": {
   "name": "Lost Camp",
-  "structures": 89,
+  "structures": 90,
   "steps": 16,
   "t0": 1785211174,
   "t1": 1786491100,
