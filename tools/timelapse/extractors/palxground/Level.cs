@@ -418,6 +418,193 @@ public static class Level
             return 0;
         }
 
+        if (mode == "--hlodfar")
+        {
+            // FAR-FIELD TERRAIN, and it is shipped, not invented.
+            //
+            // --hlodland (below) established WHAT the HLOD0_* grids hold: 625
+            // LandscapeMeshProxyComponents, each a cooked StaticMesh of one
+            // landscape block of the FarMountain_L0 / MainGrid LandscapeStreamingProxy
+            // set, with a BAKED BaseColor Texture2D and UVs already in 0..1.
+            // Every one of them has RelativeLocation (0,0,0) and RelativeScale3D
+            // (1,1,1): the vertices are ALREADY IN WORLD CENTIMETRES, so there is
+            // no transform to get wrong.
+            //
+            // The whole 17 km x 13.7 km island is 871k triangles in this form -
+            // roughly one triangle per 250 m^2 - because that is exactly what an
+            // HLOD proxy is for. It is the game's own decimation of the same
+            // surface --landscape reads at 1 quad per metre, so using it is not a
+            // simplification we invented; it is the representation Palworld itself
+            // draws at distance.
+            //
+            // Output is deliberately dumb so build_terrain.py can clip and merge
+            // without a decoder:
+            //   hlodfar/<key>.bin  magic 'HFAR', nv, ni, then nv*3 float32 world
+            //                      positions, nv*2 float32 UVs, ni uint32 indices.
+            //   hlodfar/<key>.rgb  T*T*3 raw bytes of the cooked BaseColor bake,
+            //                      taken from the texture's OWN mip chain at
+            //                      <= HLODFAR_TEX (default 128) - the game's
+            //                      downsample, not a resample of ours.
+            //   hlodfar_index.json key, world AABB, verts, tris, tex size.
+            int T = int.TryParse(Environment.GetEnvironmentVariable("HLODFAR_TEX"), out var tt) ? tt : 128;
+            var farDir = Path.Combine(OutDir, "hlodfar");
+            Directory.CreateDirectory(farDir);
+            var farRecs = new List<Dictionary<string, object>>();
+            var farBits = new List<(string key, SkiaSharp.SKBitmap bm)>();
+            int nOk = 0, nNoTex = 0; long nTris = 0;
+            foreach (var vp in vpaths)
+            {
+                IPackage pkg;
+                try { pkg = provider.LoadPackage(vp); }
+                catch (Exception ex) { Console.Error.WriteLine($"  SKIP {vp}: {ex.Message}"); continue; }
+                var cellf = vp[(vp.LastIndexOf('/') + 1)..];
+                cellf = cellf[..cellf.LastIndexOf('.')];
+                foreach (var e in pkg.GetExports())
+                {
+                    if (e.ExportType != "LandscapeMeshProxyComponent") continue;
+                    var smRef = e.GetOrDefault<FPackageIndex>("StaticMesh", null);
+                    CUE4Parse.UE4.Assets.Exports.StaticMesh.UStaticMesh sm = null;
+                    try { sm = smRef?.Load<CUE4Parse.UE4.Assets.Exports.StaticMesh.UStaticMesh>(); } catch { }
+                    if (sm == null) continue;
+                    var loc = e.GetOrDefault("RelativeLocation", FVector.ZeroVector);
+                    var scl = e.GetOrDefault("RelativeScale3D", FVector.OneVector);
+                    // These are all identity in the shipped data; if that ever stops
+                    // being true, say so loudly rather than emitting a wrong world
+                    // position, because nothing downstream applies a transform.
+                    if (loc.X != 0 || loc.Y != 0 || loc.Z != 0 || scl.X != 1 || scl.Y != 1 || scl.Z != 1)
+                    {
+                        Console.Error.WriteLine($"  NON-IDENTITY {cellf} {e.Name} loc={loc} scale={scl} - SKIPPED");
+                        continue;
+                    }
+                    using var dto = new CUE4Parse_Conversion.Dto.StaticMeshDto(sm,
+                        CUE4Parse_Conversion.Options.EMeshQuality.All,
+                        CUE4Parse_Conversion.Options.ENaniteMeshFormat.NaniteLast);
+                    if (dto.LODs.Count == 0) continue;
+                    var lod = dto.LODs[0];
+                    var key = $"{cellf}__{e.Name}";
+
+                    float mnx = float.MaxValue, mny = float.MaxValue, mnz = float.MaxValue;
+                    float mxx = float.MinValue, mxy = float.MinValue, mxz = float.MinValue;
+                    using (var fs = File.Create(Path.Combine(farDir, key + ".bin")))
+                    using (var bw = new BinaryWriter(fs))
+                    {
+                        bw.Write(new[] { (byte)'H', (byte)'F', (byte)'A', (byte)'R' });
+                        bw.Write(lod.Vertices.Length);
+                        bw.Write(lod.Indices.Length);
+                        foreach (var v in lod.Vertices)
+                        {
+                            var p = v.Position;
+                            if (p.X < mnx) mnx = p.X; if (p.X > mxx) mxx = p.X;
+                            if (p.Y < mny) mny = p.Y; if (p.Y > mxy) mxy = p.Y;
+                            if (p.Z < mnz) mnz = p.Z; if (p.Z > mxz) mxz = p.Z;
+                            bw.Write(p.X); bw.Write(p.Y); bw.Write(p.Z);
+                        }
+                        foreach (var v in lod.Vertices) { bw.Write(v.Uv.U); bw.Write(v.Uv.V); }
+                        foreach (var i in lod.Indices) bw.Write(i);
+                    }
+
+                    // BaseColor. The MaterialInstanceConstant the cooker wrote for
+                    // this proxy exposes the bake as PM_Diffuse / BaseColorTexture.
+                    string texName = null; int texW = 0;
+                    foreach (var m in sm.StaticMaterials.Select(x => x.MaterialInterface))
+                    {
+                        if (m == null || !m.TryLoad(out var mo)
+                            || mo is not CUE4Parse.UE4.Assets.Exports.Material.UMaterialInterface um) continue;
+                        var pp = new CUE4Parse.UE4.Assets.Exports.Material.CMaterialParams2();
+                        um.GetParams(pp, CUE4Parse.UE4.Assets.Exports.Material.EMaterialDepth.AllLayersNoRef);
+                        CUE4Parse.UE4.Assets.Exports.Texture.UTexture2D bc = null;
+                        foreach (var want in new[] { "PM_Diffuse", "BaseColorTexture" })
+                        {
+                            foreach (var kv in pp.Textures)
+                                if (string.Equals(kv.Key, want, StringComparison.OrdinalIgnoreCase)
+                                    && kv.Value is CUE4Parse.UE4.Assets.Exports.Texture.UTexture2D t2
+                                    && !t2.Name.StartsWith("BaseFlatten", StringComparison.OrdinalIgnoreCase))
+                                { bc = t2; break; }
+                            if (bc != null) break;
+                        }
+                        if (bc == null) continue;
+                        SkiaSharp.SKBitmap sk = null;
+                        try { sk = bc.Decode(T)?.ToSkBitmap(); } catch { }
+                        if (sk == null) continue;
+                        if (sk.Width != T || sk.Height != T)
+                        {
+                            var r2 = sk.Resize(new SkiaSharp.SKImageInfo(T, T), SkiaSharp.SKFilterQuality.High);
+                            if (r2 != null) { sk.Dispose(); sk = r2; }
+                        }
+                        farBits.Add((key, sk));
+                        texName = bc.Name; texW = bc.PlatformData?.SizeX ?? 0;
+                        break;
+                    }
+                    if (texName == null) nNoTex++;
+
+                    farRecs.Add(new Dictionary<string, object>
+                    {
+                        ["key"] = key,
+                        ["cell"] = cellf,
+                        ["comp"] = e.Name,
+                        ["mesh"] = sm.Name,
+                        ["verts"] = lod.Vertices.Length,
+                        ["tris"] = lod.Indices.Length / 3,
+                        ["lods"] = dto.LODs.Count,
+                        ["vmin"] = new[] { mnx, mny, mnz },
+                        ["vmax"] = new[] { mxx, mxy, mxz },
+                        ["tex"] = texName,
+                        ["texSrc"] = texW,
+                        ["texT"] = texName == null ? 0 : T,
+                    });
+                    nOk++; nTris += lod.Indices.Length / 3;
+                }
+            }
+
+            // ONE ATLAS FOR THE WHOLE ISLAND. Each proxy carries its own baked
+            // BaseColor, so drawn per-tile the far field would be ~600 textures
+            // and ~600 draw calls. Packed into a single image the merged
+            // far-field mesh is ONE draw call with ONE texture, and the tile's
+            // UVs (already exactly 0..1) just get scaled into its slot.
+            //
+            // GUT is a 2 px gutter of the tile's own edge pixels, replicated
+            // outward. Bilinear sampling at a tile edge then blends against a
+            // copy of that edge instead of against the neighbouring tile, so
+            // packing introduces no seam. UVs still map 0..1 onto the exact
+            // T x T core, so no tile is stretched to hide the bleed either.
+            const int GUT = 2;
+            int slot = T + GUT * 2;
+            int cols = (int)Math.Ceiling(Math.Sqrt(Math.Max(1, farBits.Count)));
+            int rows = (int)Math.Ceiling(farBits.Count / (double)cols);
+            int aw = Math.Max(1, cols * slot), ah = Math.Max(1, rows * slot);
+            var slots = new Dictionary<string, float[]>();
+            using (var atlas = new SkiaSharp.SKBitmap(aw, ah, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Opaque))
+            using (var canvas = new SkiaSharp.SKCanvas(atlas))
+            {
+                canvas.Clear(new SkiaSharp.SKColor(0, 0, 0));
+                for (int i = 0; i < farBits.Count; i++)
+                {
+                    var (k, bm) = farBits[i];
+                    int cx = (i % cols) * slot, cy = (i / cols) * slot;
+                    // Gutter first (the tile drawn oversized, then the core on
+                    // top): a cheap way to get edge replication with Skia's own
+                    // clamped sampling.
+                    canvas.DrawBitmap(bm, new SkiaSharp.SKRect(cx, cy, cx + slot, cy + slot));
+                    canvas.DrawBitmap(bm, new SkiaSharp.SKRect(cx + GUT, cy + GUT, cx + GUT + T, cy + GUT + T));
+                    slots[k] = new[] {
+                        (cx + GUT) / (float)aw, (cy + GUT) / (float)ah,
+                        (cx + GUT + T) / (float)aw, (cy + GUT + T) / (float)ah };
+                    bm.Dispose();
+                }
+                canvas.Flush();
+                using var img = atlas.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 90);
+                File.WriteAllBytes(Path.Combine(farDir, "hlodfar_atlas.jpg"), img.ToArray());
+            }
+            foreach (var r in farRecs)
+                r["slot"] = slots.TryGetValue((string)r["key"], out var s) ? s : null;
+
+            File.WriteAllText(Path.Combine(OutDir, "hlodfar_index.json"),
+                JsonSerializer.Serialize(farRecs, new JsonSerializerOptions { WriteIndented = false }));
+            Console.Error.WriteLine($"hlodfar: {nOk} proxies, {nNoTex} without a BaseColor bake, "
+                + $"{nTris:N0} tris, atlas {aw}x{ah} ({cols}x{rows} slots of {T}+{GUT * 2}) -> {farDir}");
+            return 0;
+        }
+
         if (mode == "--hlodland")
         {
             // Palworld DOES cook a baked landscape: the HLOD0_252m_* runtime grids

@@ -9,7 +9,7 @@ inference from presence/absence plus geometry.
 """
 import json, os, sys, re, collections
 
-SP = os.path.dirname(os.path.abspath(__file__))
+SP = os.environ.get("PALTL_WORK") or os.path.dirname(os.path.abspath(__file__))
 UNION = os.path.join(SP, "mappal", "public", "union")
 LOOT = "CommonDropItem3D"          # ground loot, ~1h despawn timer, not construction
 # Things that come and go on their own and were never *built*, so their

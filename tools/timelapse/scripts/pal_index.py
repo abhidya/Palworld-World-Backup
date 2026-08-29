@@ -30,8 +30,8 @@ import json, os, sys, glob, time, subprocess
 from collections import defaultdict
 from multiprocessing import Pool
 
-SP = os.path.dirname(os.path.abspath(__file__))
-REPO = "/Users/mannybhidya/Palworld"
+SP = os.environ.get("PALTL_WORK") or os.path.dirname(os.path.abspath(__file__))
+REPO = os.environ.get("PALTL_REPO") or os.path.expanduser("~/Palworld")
 LINEAGE_GUILD = "017a45a0"   # same lineage filter merge_all.py uses
 
 

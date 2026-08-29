@@ -1,7 +1,7 @@
 import subprocess, sys, json, os, time
 from multiprocessing import Pool
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-REPO="/Users/mannybhidya/Palworld"
+REPO=os.environ.get("PALTL_REPO") or os.path.expanduser("~/Palworld")
 PATH_IN_REPO="world/current/Level.sav"
 
 def frame(arg):

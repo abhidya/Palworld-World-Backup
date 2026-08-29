@@ -27,7 +27,7 @@ Writes, per base b:
 import json, os, glob
 from collections import defaultdict
 
-SP = os.path.dirname(os.path.abspath(__file__))
+SP = os.environ.get("PALTL_WORK") or os.path.dirname(os.path.abspath(__file__))
 OUT = f"{SP}/mappal/public/union"
 NAMES = {"07f13218": "Glass Tower", "16fca097": "Wooden Camp",
          "de44d9f4": "Stone Works", "5fed0024": "Lost Camp"}

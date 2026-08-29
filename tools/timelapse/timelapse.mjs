@@ -1,6 +1,8 @@
 import puppeteer from 'puppeteer-core';
 import fs from 'fs';
-const SP='';
+const SP=process.env.PALTL_WORK||process.cwd();
+const APP=process.env.MAPPAL_ROOT||`${SP}/mappal`;
+const TOOL_DIR=new URL('.',import.meta.url).pathname.replace(/\/$/,'');
 const CHROME='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const BASE=process.argv[2];
 const MINFRAMES=parseInt(process.argv[3]||'240');
@@ -25,12 +27,25 @@ const STANCE=process.env.STANCE==='standing'?'standing':'kneel';
 // WILDPVP=1 keeps the PvP-arena spawn points in the wild-Pal draw. Off by
 // default — see the PVP note in the wild-Pal block.
 const WILDPVP=process.env.WILDPVP==='1';
-const man=JSON.parse(fs.readFileSync(`${SP}/mappal/public/union/manifest.json`));
+// UNION_DIR is the union data this run reads FROM DISK: the manifest, the base
+// export that gets uploaded into the page, and endoflife_<b>.json. It defaults
+// to the shared tree so unset behaviour is unchanged.
+//
+// It exists because of a trap that silently splits a render in half. The page
+// fetches times_/builders_/demolitions_/terrain_/pals_ over HTTP from whatever
+// the DEV SERVER's publicDir is, while these three come off the local
+// filesystem. In a worktree those are two different directories, so a render can
+// upload the SHARED union and then fetch the WORKTREE's terrain and lifetimes,
+// and the two halves disagree with nothing on screen to say so. Point UNION_DIR
+// at the same public/union the server is serving and the two halves are provably
+// the same bytes.
+const UNION_DIR=process.env.UNION_DIR||`${APP}/public/union`;
+const man=JSON.parse(fs.readFileSync(`${UNION_DIR}/manifest.json`));
 const info=man[BASE];
 const OUT=process.env.OUTDIR||`${SP}/frames/${BASE}`; fs.mkdirSync(OUT,{recursive:true});
 // objects.json is MapPal's own type registry; we use its `category` field as the
 // authority for what a piece IS, rather than inventing a taxonomy here.
-const REG=JSON.parse(fs.readFileSync(`${SP}/mappal/src/data/objects.json`)).types;
+const REG=JSON.parse(fs.readFileSync(`${APP}/src/data/objects.json`)).types;
 // ts -> [RealDateTimeTicks, GameDateTimeTicks] read straight out of
 // worldSaveData.GameTimeSaveData in each snapshot's Level.sav (extract_gametime.py).
 const GT=JSON.parse(fs.readFileSync(`${SP}/gametime_index.json`));
@@ -89,7 +104,7 @@ page.on('pageerror',e=>console.log('PAGEERR',e.message));
 // material code.
 await page.goto(`http://127.0.0.1:${process.env.PORT||5174}/`,{waitUntil:'networkidle2'});
 const inp=await page.waitForSelector('input[type=file]',{timeout:20000});
-await inp.uploadFile(`${SP}/mappal/public/union/union_${BASE}.json`);
+await inp.uploadFile(`${UNION_DIR}/union_${BASE}.json`);
 await page.waitForFunction(()=>!!window.__mappalCam&&!!window.__mappalCam.setObjects,{timeout:40000});
 await new Promise(r=>setTimeout(r,3000));
 await page.evaluate(()=>{const cv=document.querySelector('canvas');
@@ -103,7 +118,7 @@ await page.evaluate(()=>{const cv=document.querySelector('canvas');
 // data and what is reconstructed.
 // BUILDORDER=<path> swaps in an older revision, so two renders can be compared
 // with the ordering as the only variable.
-await page.evaluate(fs.readFileSync(process.env.BUILDORDER||`${SP}/buildorder.js`,'utf8'));
+await page.evaluate(fs.readFileSync(process.env.BUILDORDER||`${TOOL_DIR}/buildorder.js`,'utf8'));
 
 const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
   const times=await (await fetch(`/union/times_${b}.json`)).json();
@@ -226,6 +241,14 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
   // CommonDropItem3D is ground loot on a 1-hour despawn timer, not construction.
   // It IS rendered (the base should look lived-in) but is excluded from step
   // pacing and from camera framing, because its churn swamps the build signal.
+  // Save-space (cm, z-up) -> scene units, the same recentring and 0.01 scale
+  // every object above gets. Only the CLOSEUP diagnostic uses it: it lets a
+  // check frame be aimed at the exact avatar the frame says it drew, instead of
+  // at whichever __avatarPart the scene graph happens to yield first (which is
+  // usually one of the recorded PLAYER-layer figures, not the builder — that is
+  // precisely how an earlier check sheet ended up photographing the wrong
+  // person).
+  window.__toScene=(x,y,z)=>[(x-cx)*S,(z-cz)*S,(y-cy)*S];
   const LOOT='CommonDropItem3D';
   window.__all=all.map(o=>({o,t:times[o.id]||null,loot:o.typeId===LOOT,
     sx:(o.position.x-cx)*S, sy:(o.position.z-cz)*S, sz:(o.position.y-cy)*S}));
@@ -286,6 +309,33 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
   window.__posById=new Map(window.__all.map(x=>[x.o.id,x.o.position]));
   const bl=actors?await grab(`/union/builders_${b}.json`):null;
   window.__builders=(bl&&bl.builders)||{};
+  // ---- CARRIED-FORWARD ATTRIBUTION -----------------------------------------
+  // `build_player_uid` IS RECORDED DATA: builders_<b>.json is that field copied
+  // out of each object's own save row, and where it is present the avatar drawn
+  // is the player the save names. A piece where it is ABSENT used to draw
+  // nobody, so a decoration or a workbench with no recorded owner simply
+  // appeared out of thin air in the middle of a stretch someone was visibly
+  // building.
+  //
+  // CARRYING THE LAST KNOWN BUILDER FORWARD IS A RENDERING CHOICE, not data. It
+  // says: the person who was last seen building is still the one working. That
+  // is a plausible reading of a continuous build session and it is the same kind
+  // of inference as the standing rule and the demolition attribution — and like
+  // those it is labelled, counted in the audit line, and separable from the
+  // recorded half. The save does not say who placed these pieces.
+  //
+  // Two limits, both deliberate:
+  //   * A piece that PRECEDES every known builder in the order carries null and
+  //     still draws nobody. Guessing backwards from a later builder would be
+  //     inventing history in the wrong direction.
+  //   * "00000000" is a REAL player (mannbhai83, host slot), already resolved
+  //     from the all-zero sentinel upstream — see __builderAt. Only null means
+  //     "no recorded builder".
+  window.__carriedBuilder=(()=>{
+    const out=new Array(order.length).fill(null); let last=null;
+    for(let k=0;k<order.length;k++){ const u=window.__builders[order[k]]; if(u) last=u; out[k]=last; }
+    return out;
+  })();
   const av=actors?await grab('/union/avatars.json'):null;
   window.__avatars=(av&&av.players)||{};
   // ---- WHAT THEY WERE ACTUALLY WEARING --------------------------------------
@@ -521,10 +571,13 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
   }
   // demolitions_<b>.json: pieces that vanished and were superseded in place, each
   // paired with the replacement that took the spot and the uid to credit.
-  // Produced by a separate pass; read verbatim here, never recomputed. See
-  // __demoAt for the provenance limit, which is severe and must not be smoothed
-  // over: the save records that a piece was there and later was not. It records
-  // NO destruction event, no demolisher, and no time of demolition.
+  // Produced by a separate pass; read verbatim here, never recomputed. It covers
+  // only the removals it could PAIR with a replacement — 15 of the 112 across the
+  // four bases — so it is used for ATTRIBUTION only; the removal events
+  // themselves come from the lifetime rows. See __changePose for the provenance
+  // limit, which is severe and must not be smoothed over: the save records that a
+  // piece was there and later was not. It records NO destruction event, no
+  // demolisher, and no time of demolition.
   const dm=actors?await grab(`/union/demolitions_${b}.json`):null;
   window.__demolitions=(dm&&dm.demolitions)||[];
   // Parse every avatar mesh before frame 0. An un-cached useGLTF suspends, and
@@ -651,9 +704,13 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
     if(!(preShown>0&&preShown<=O.length)) return null;
     const id=O[preShown-1];                       // the piece being placed NOW
     if(!id) return null;
-    const uid=window.__builders[id];
-    // Credit follows the piece being placed. A null builder is a piece the save
-    // recorded no owner for — draw nobody rather than attribute it to a guess.
+    const rec=window.__builders[id]||null;
+    // Credit follows the piece being placed where the save records one. Where it
+    // does not, the LAST KNOWN builder in the order is carried forward and shown
+    // placing this piece — an inference, flagged as `carried` on the returned
+    // object and counted separately in the audit line. See __carriedBuilder.
+    // Before any known builder there is nothing to carry, so uid stays null and
+    // nobody is drawn.
     //
     // The short key "00000000" is NOT that sentinel. Counted straight off the
     // union map_objects, two different full uids share those eight characters:
@@ -663,6 +720,7 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
     // before truncating, so by the time a uid reaches this file "00000000" can
     // only be that real player. Skipping it here (as an earlier revision did)
     // silently dropped 293 genuinely attributed pieces.
+    const uid=rec||window.__carriedBuilder[preShown-1]||null;
     if(!uid) return null;
     const look=window.__avatarLook(uid,t); if(!look) return null;
     const target=window.__objById.get(id); if(!target) return null;
@@ -686,6 +744,7 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
     // name is the player's own roster name (GroupSaveDataMap) or null — a player
     // the rosters do not name renders with no tag rather than an invented one.
     return {uid,name:look.name,parts:look.parts,appearanceExact:look.exact,
+      attribution:rec?'recorded':'carried',
       x:sx, y:sy, z:sz+EYE,
       qx:0,qy:0,qz:Math.sin(yaw/2),qw:Math.cos(yaw/2)};
   };
@@ -745,6 +804,129 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
     }
     return null;
   };
+  /**
+   * The REPLAY-PHASE builder: someone placing a piece that appears after the
+   * opening snapshot.
+   *
+   * WHY THIS EXISTS. The build-out reconstruction covers only the pieces that
+   * were already standing when the record starts. Everything added afterwards
+   * was revealed by __frame's ordinary lifetime test with NOBODY placing it,
+   * because __builderAt is frozen at the end of the build order for the whole
+   * replay — it kept re-drawing the last build-out piece's builder standing
+   * still while new pieces popped into existence elsewhere. At Wooden Camp that
+   * is 128 player-placed pieces including 25 decorations; measured per base by
+   * the `replay-phase placements` audit line.
+   *
+   * PROVENANCE, and this half is STRONGER than the build-out's, not weaker:
+   *   WHEN  real. The piece's own first-seen timestamp in times_<b>.json, i.e.
+   *         the snapshot it appears in. Resolution is the snapshot cadence: the
+   *         save records no placement instant, so this says "between the previous
+   *         snapshot and this one", exactly as the reveal itself already does.
+   *   WHO   real. The piece's own recorded build_player_uid. NOTHING IS CARRIED
+   *         FORWARD HERE, deliberately: unlike the build order this is not one
+   *         continuous session, and the things that appear during the replay
+   *         include breeding eggs and world rocks that no player placed at all
+   *         (74 PalEgg_Dark + 19 HatchingPalEgg at Wooden Camp). A piece with no
+   *         recorded builder draws nobody, which is the right answer for those.
+   *   WHERE a rendering choice, the same one __demoAt makes: half a grid tile
+   *         clear of the piece, on the level the standing rule puts it, facing
+   *         it. The save records no build position for anything.
+   *
+   * One avatar per snapshot. The save records no ORDER within a snapshot, so
+   * where several pieces appear together the representative is picked by sorted
+   * id — deterministic, and it makes no claim that this piece went down first.
+   */
+  window.__replayNew=(()=>{
+    const m=new Map();
+    for(const x of window.__all){
+      if(x.loot||x.pre!==undefined||!x.t) continue;
+      if(!window.__builders[x.o.id]) continue;      // no recorded builder -> nobody
+      const k=x.t[0];
+      if(!m.has(k)) m.set(k,[]);
+      m.get(k).push(x.o.id);
+    }
+    for(const v of m.values()) v.sort();
+    return m;
+  })();
+  window.__replayBuilderAt=(preShown,t)=>{
+    if(preShown<window.__preCount) return null;     // build-out still running
+    const ids=window.__replayNew.get(t); if(!ids||!ids.length) return null;
+    const id=ids[0];
+    const uid=window.__builders[id]; if(!uid) return null;
+    const o=window.__objById.get(id); if(!o) return null;
+    const look=window.__avatarLook(uid,t); if(!look) return null;
+    const sz=window.__standZ(o);
+    // Offset direction is derived from the piece's own position rather than a
+    // fixed axis, so the avatar is not always on the same side of everything.
+    const a=Math.atan2(o.position.y,o.position.x);
+    const sx=o.position.x+Math.cos(a)*GRID_PITCH/2, sy=o.position.y+Math.sin(a)*GRID_PITCH/2;
+    const yaw=Math.atan2(o.position.y-sy,o.position.x-sx);
+    return {uid,name:look.name,parts:look.parts,appearanceExact:look.exact,
+      attribution:'recorded',
+      x:sx,y:sy,z:sz+EYE,
+      qx:0,qy:0,qz:Math.sin(yaw/2),qw:Math.cos(yaw/2)};
+  };
+  // Resolve the credited actor and staging pose for one replay change. The
+  // actor identity comes from recorded build ownership or the explicitly
+  // labelled fallback chain in __changeUid; only the staging position is a
+  // rendering choice.
+  window.__changePose=(j,k,t)=>{
+    const ch=window.__changes[j];
+    if(!ch||k<1||k>ch.length) return null;
+    const c=ch[k-1];
+    const ent=window.__changeUid[j][k-1]; if(!ent) return null;
+    const o=window.__objById.get(c.id); if(!o) return null;
+    // Eggs and mineable rocks change on the world's own terms. Animate their
+    // arrival/departure, but never fabricate a player responsible for it.
+    if(/^(Pal[Ee]gg|DamagableRock)/.test(o.typeId))
+      return {uid:null,name:null,parts:null,appearanceExact:false,
+              attribution:'world-no-actor',kind:c.kind};
+    const look=window.__avatarLook(ent.uid,t); if(!look) return null;
+    let sx,sy,sz,yaw;
+    if(c.kind==='add'){
+      const prev=k>1?window.__objById.get(ch[k-2].id):null;
+      const stand=prev||o;
+      sx=stand.position.x; sy=stand.position.y; sz=window.__standZ(stand,o);
+      const dx=o.position.x-sx,dy=o.position.y-sy;
+      if(Math.hypot(dx,dy)<1e-3){
+        const nxt=k<ch.length?window.__objById.get(ch[k].id):null;
+        yaw=nxt?Math.atan2(nxt.position.y-sy,nxt.position.x-sx):0;
+      }else yaw=Math.atan2(dy,dx);
+    }else{
+      const rep=window.__demoRepl.get(c.id);
+      const r=rep?window.__objById.get(rep):null;
+      let ox=r?o.position.x-r.position.x:o.position.x;
+      let oy=r?o.position.y-r.position.y:o.position.y;
+      const m=Math.hypot(ox,oy);
+      if(m<1e-3){ox=1;oy=0;}else{ox/=m;oy/=m;}
+      sx=o.position.x+ox*GRID_PITCH/2; sy=o.position.y+oy*GRID_PITCH/2;
+      sz=window.__standZ(o);
+      yaw=Math.atan2(o.position.y-sy,o.position.x-sx);
+    }
+    return {uid:ent.uid,name:look.name,parts:look.parts,appearanceExact:look.exact,
+      attribution:ent.prov,kind:c.kind,x:sx,y:sy,z:sz+EYE,
+      qx:0,qy:0,qz:Math.sin(yaw/2),qw:Math.cos(yaw/2)};
+  };
+  // Hold the previous snapshot on screen and apply this snapshot's changes one
+  // at a time, so no build or removal silently appears in a batch.
+  window.__frameStep=(j,k)=>{
+    const S=window.__steps,t=S[j],prevT=j>0?S[j-1]:t;
+    const ch=window.__changes[j]||[],rm=new Set(),ad=new Set();
+    for(let i=0;i<k&&i<ch.length;i++) (ch[i].kind==='remove'?rm:ad).add(ch[i].id);
+    const L=[];
+    for(const x of window.__all){
+      const id=x.o.id;
+      if(x.loot){if(!x.t||(x.t[0]<=t&&x.t[1]>=t))L.push(window.__withPaint(x.o,t));continue;}
+      if(ad.has(id)){L.push(window.__withPaint(x.o,t));continue;}
+      if(rm.has(id))continue;
+      if(x.pre!==undefined){
+        if(x.pre<window.__preCount&&(!x.t||x.t[1]>=prevT))L.push(window.__withPaint(x.o,t));
+        continue;
+      }
+      if(!x.t||(x.t[0]<=prevT&&x.t[1]>=prevT))L.push(window.__withPaint(x.o,t));
+    }
+    window.__mappalCam.setObjects(L);return L.length;
+  };
   window.__firstT=window.__all.length?Math.min(...window.__all.filter(x=>x.t).map(x=>x.t[0])):0;
   window.__preCount=pre.length; window.__preShown=pre.length; window.__preRecent=0;
   window.__frame=(t,preShown)=>{const L=[];
@@ -792,6 +974,12 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
     const X=ext(live.map(p=>p.sx)),Y=ext(live.map(p=>p.sy)),Z=ext(live.map(p=>p.sz));
     let tx=(X[0]+X[1])/2, ty=(Y[0]+Y[1])/2, tz=(Z[0]+Z[1])/2;
     let w=Math.max(X[1]-X[0],Z[1]-Z[0]), h=Y[1]-Y[0];
+    // lw/lh are the extents the OLD camera would have framed, i.e. whole-base
+    // blended toward the recent-work box. Nothing in the live camera reads them;
+    // they exist so the stability block can solve the pre-fix camera over the
+    // SAME frame plan and print a real before/after instead of a claim. Delete
+    // them and the A/B in the log goes with them.
+    let lw=w, lh=h;
     if(recent.length>=3){
       const rX=ext(recent.map(p=>p.sx)),rY=ext(recent.map(p=>p.sy)),rZ=ext(recent.map(p=>p.sz));
       const rw=Math.max(rX[1]-rX[0],rZ[1]-rZ[0]), rh=rY[1]-rY[0];
@@ -804,28 +992,186 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
       const k=1-Math.min(1,tight/0.45);          // 1 = very tight, 0 = base-wide
       const blend=0.15+0.65*k;
       tx=tx*(1-blend)+rcx*blend; ty=ty*(1-blend)+rcy*blend; tz=tz*(1-blend)+rcz*blend;
+      // The pre-fix zoom, restored verbatim for measurement only. This is the
+      // line that caused the pumping: the recent box grows and shrinks every few
+      // frames, so the framed volume — and with it the camera distance — did too.
+      lw=w*(1-k)+Math.max(rw,12)*k; lh=h*(1-k)+Math.max(rh,10)*k;
     }
-    return {tx,ty,tz,w,h,n:live.length};
+    return {tx,ty,tz,w,h,lw,lh,n:live.length};
   };
   window.__orbit=(az,dist,el,tx,ty,tz)=>{const c=window.__mappalCam,a=az*Math.PI/180,e=el*Math.PI/180;
     c.setView([tx+Math.cos(a)*Math.cos(e)*dist, ty+Math.sin(e)*dist, tz+Math.sin(a)*Math.cos(e)*dist],[tx,ty,tz]);};
   const ts=[...new Set(window.__all.filter(x=>x.t&&!x.loot).map(x=>x.t[0]))].sort((a,b)=>a-b);
   window.__steps=ts;
+  // ---- the change list itself ------------------------------------------------
+  // One entry per piece that arrives or departs at each step. See the long note
+  // on __changePose for what is recorded here and what is reconstructed.
+  //
+  // ORDER WITHIN A STEP. Removals first, then arrivals, so a replacement reads
+  // as a replacement: the old piece comes down and the new one goes up in the
+  // same beat. Arrivals are ordered by the SAME buildorder.js reconstruction the
+  // build-out uses — a real topological sort of the support relation implied by
+  // the pieces' own positions, so a step lays its foundations before its roofs
+  // and finishes with decoration, and consecutive pieces are usually adjacent so
+  // the avatar's walk falls out of the order. The save records no order within a
+  // snapshot; removals therefore fall back to sorted id, which is deterministic
+  // and claims nothing.
+  window.__demoRepl=new Map();
+  for(const d of window.__demolitions) if(d.replacementId) window.__demoRepl.set(d.removedId,d.replacementId);
+  window.__changes=(()=>{
+    const idx=new Map(ts.map((t,i)=>[t,i]));
+    const adds=ts.map(()=>[]), rems=ts.map(()=>[]);
+    const lastStep=ts[ts.length-1];
+    for(const x of window.__all){
+      if(x.loot||!x.t) continue;
+      // ARRIVAL: not part of the build-out, and first seen at a later step.
+      if(x.pre===undefined){ const i=idx.get(x.t[0]); if(i!==undefined&&i>0) adds[i].push(x.o.id); }
+      // DEPARTURE: last seen at t[1], so gone from the first step after it. This
+      // is the same test __frame already applied silently; the only new thing is
+      // that it now costs a frame and draws somebody.
+      if(x.t[1]<lastStep){
+        let lo=0,hi=ts.length-1,i=-1;
+        while(lo<=hi){const m=(lo+hi)>>1; if(ts[m]<=x.t[1]){i=m;lo=m+1;} else hi=m-1;}
+        if(i>=0&&i+1<ts.length) rems[i+1].push(x.o.id);
+      }
+    }
+    return ts.map((_,i)=>{
+      rems[i].sort();
+      let ordered=adds[i];
+      if(ordered.length>1) ordered=window.__reconstructBuildOrder(ordered.map(id=>{
+        const o=window.__objById.get(id);
+        return {id,x:o.position.x,y:o.position.y,z:o.position.z,typeId:o.typeId,
+                category:(reg[o.typeId]||{}).category};}),{stats:{}});
+      return rems[i].map(id=>({kind:'remove',id})).concat(ordered.map(id=>({kind:'add',id})));
+    });
+  })();
+  // Who each change is attributed to, and how. The carry-forward chain runs in
+  // ANIMATION order — build-out first, then step by step, change by change — and
+  // is seeded from the last known builder of the build order, so a replay change
+  // with no attribution of its own inherits the person last seen working.
+  window.__changeUid=(()=>{
+    let last=window.__carriedBuilder.length?window.__carriedBuilder[window.__carriedBuilder.length-1]:null;
+    return window.__changes.map(list=>list.map(c=>{
+      const own=window.__builders[c.id]||null;
+      if(c.kind==='add'){
+        if(own){last=own; return {uid:own,prov:'recorded'};}
+        return last?{uid:last,prov:'carried'}:null;
+      }
+      const paired=window.__demoPairs.get(c.id);
+      if(paired){last=paired; return {uid:paired,prov:'pairedReplacement'};}
+      if(own){last=own; return {uid:own,prov:'ownBuilder'};}
+      return last?{uid:last,prov:'carried'}:null;
+    }));
+  })();
   // Attribution coverage over the reconstructed build-out, so a render states
   // how much of what it shows is actually credited to a player.
-  const bstat={attributed:0,unrecorded:0,inexactLook:0,noMesh:0,byName:{}};
+  const bstat={attributed:0,recorded:0,carried:0,unrecorded:0,inexactLook:0,noMesh:0,
+               byName:{},carriedByCat:{},unrecordedByCat:{}};
+  const catOf=id=>{const o=window.__objById.get(id); return (o&&(reg[o.typeId]||{}).category)||'uncategorised';};
   for(let k=1;k<=window.__buildOrder.length;k++){
-    const uid=window.__builders[window.__buildOrder[k-1]];
-    if(!uid){bstat.unrecorded++;continue;}
+    const id=window.__buildOrder[k-1];
+    const uid=window.__builders[id];
     const a=window.__builderAt(k,t0all);
-    // Attributed but unresolvable to real extracted meshes: counted, not faked.
-    if(!a){bstat.noMesh++;continue;}
+    // Nobody at all: the piece has no recorded builder AND no earlier known
+    // builder to carry forward, so it precedes the first attribution.
+    if(!a){ if(!uid&&!window.__carriedBuilder[k-1]){bstat.unrecorded++;
+              bstat.unrecordedByCat[catOf(id)]=(bstat.unrecordedByCat[catOf(id)]||0)+1;}
+            // Attributed but unresolvable to real extracted meshes: counted, not faked.
+            else bstat.noMesh++;
+            continue; }
     bstat.attributed++;
-    const who=a.name?`${a.name} (${uid})`:`${uid} (unnamed)`;
+    if(a.attribution==='recorded') bstat.recorded++;
+    else { bstat.carried++; bstat.carriedByCat[catOf(id)]=(bstat.carriedByCat[catOf(id)]||0)+1; }
+    const who=a.name?`${a.name} (${a.uid})`:`${a.uid} (unnamed)`;
     bstat.byName[who]=(bstat.byName[who]||0)+1;
     if(!a.appearanceExact)bstat.inexactLook++;
   }
+  // ---- REPLAY-PHASE COVERAGE -------------------------------------------------
+  // The same accounting for the change list: every arrival and every departure
+  // after the opening snapshot, whether it draws somebody, and on what basis.
+  // This is the line that has to make a gap of this class impossible to miss —
+  // `unanimated` must be zero, and if it is not it says how many and of what.
+  //
+  // The change list is deliberately WIDER than demolitions_<b>.json's removal
+  // census, and the difference has to be visible or it looks like a bug. That
+  // pass excludes Pal eggs and DamagableRocks by type and ignores anything that
+  // vanishes within 600 s of the last snapshot, because it is hunting for
+  // player DEMOLITIONS. This list is hunting for anything that CHANGES ON
+  // SCREEN, which is a superset: an egg that hatches and a rock that is mined
+  // both disappear in front of the viewer and both used to do it silently.
+  // They are animated for that reason and counted apart from built pieces here,
+  // because "somebody demolished this wall" and "this ore node was mined" are
+  // different claims and the actor shown on a world object is the weakest
+  // inference in the file.
+  const WORLDOBJ=/^(Pal[Ee]gg|DamagableRock)/;
+  const cstat={adds:0,removes:0,animated:0,unanimated:0,byProv:{},byName:{},
+               unanimatedByCat:{},carriedByCat:{},
+               builtAdds:0,builtRemoves:0,worldAdds:0,worldRemoves:0,worldByType:{}};
+  for(let j=0;j<window.__changes.length;j++){
+    for(let k=1;k<=window.__changes[j].length;k++){
+      const c=window.__changes[j][k-1];
+      const co=window.__objById.get(c.id);
+      const isWorld=!!co&&WORLDOBJ.test(co.typeId);
+      if(isWorld){ if(c.kind==='add')cstat.worldAdds++; else cstat.worldRemoves++;
+                   cstat.worldByType[co.typeId]=(cstat.worldByType[co.typeId]||0)+1; }
+      else { if(c.kind==='add')cstat.builtAdds++; else cstat.builtRemoves++; }
+      if(c.kind==='add')cstat.adds++; else cstat.removes++;
+      const a=window.__changePose(j,k,ts[j]);
+      if(!a){cstat.unanimated++;
+             cstat.unanimatedByCat[catOf(c.id)]=(cstat.unanimatedByCat[catOf(c.id)]||0)+1; continue;}
+      cstat.animated++;
+      const key=c.kind+':'+a.attribution;
+      cstat.byProv[key]=(cstat.byProv[key]||0)+1;
+      if(a.attribution==='carried')
+        cstat.carriedByCat[catOf(c.id)]=(cstat.carriedByCat[catOf(c.id)]||0)+1;
+      const who=a.name?`${a.name} (${a.uid})`:`${a.uid} (unnamed)`;
+      cstat.byName[who]=(cstat.byName[who]||0)+1;
+    }
+  }
+  // ---- THE ONE THING STILL ALLOWED TO POP -----------------------------------
+  // Ground loot (CommonDropItem3D) keeps its own recorded lifetime and gets no
+  // frame and no actor: it is on the game's 1 h despawn timer, no player places
+  // or removes it, and there are thousands of rows, so putting it in the change
+  // list would bury every real placement under litter. That is a judgement, and
+  // a judgement that contradicts "nothing appears on its own" has to be STATED
+  // WITH ITS COUNT rather than left for someone to find in a frame diff. These
+  // are the appearances and disappearances this render still does unattended.
+  const lstat={rows:0,popIn:0,popOut:0,tailBuilt:0,tailWorld:0,tailByType:{},tailGapSec:0};
+  for(const x of window.__all){
+    if(!x.loot) continue;
+    lstat.rows++;
+    if(x.t){ if(x.t[0]>ts[0]) lstat.popIn++; if(x.t[1]<ts[ts.length-1]) lstat.popOut++; }
+  }
+  // ---- THE OTHER RESIDUAL: removals PAST THE LAST BUILD STEP -----------------
+  // The steps are the distinct FIRST-SEEN timestamps, so the last step is the
+  // last time anything was BUILT — which can be well before the last snapshot we
+  // hold (220,508 s before it at Wooden Camp). A piece whose last sighting falls
+  // in that tail window has no later step to hang a removal frame on, so it is
+  // never shown coming down and stays on screen to the end.
+  //
+  // This is the OPPOSITE failure to a pop: nothing vanishes unattended, a few
+  // pieces are simply still standing in the final frame when the final save says
+  // they are gone. Small (single digits per base) but real, and the difference
+  // between this count and demolitions_<b>.json's removal census is exactly it —
+  // so it is stated rather than left looking like an arithmetic error.
+  {
+    const lastStep=ts[ts.length-1];
+    let t1=lastStep;
+    for(const x of window.__all) if(x.t&&x.t[1]>t1) t1=x.t[1];
+    lstat.tailGapSec=t1-lastStep;
+    for(const x of window.__all){
+      if(x.loot||!x.t) continue;
+      if(x.t[1]<t1&&x.t[1]>=lastStep){
+        // Split exactly as the change list does. Calling a hatched Pal egg a
+        // "built piece that over-stays" would be the same category error the
+        // departure count itself had.
+        if(WORLDOBJ.test(x.o.typeId)) lstat.tailWorld++; else lstat.tailBuilt++;
+        lstat.tailByType[x.o.typeId]=(lstat.tailByType[x.o.typeId]||0)+1;
+      }
+    }
+  }
   return {total:all.length,steps:ts.length,tsList:ts,preCount:window.__preCount,stats,
+          changeCounts:window.__changes.map(c=>c.length),changes:cstat,loot:lstat,
           palCount:window.__pals.length,playerCount:window.__players.length,
           terrainCount:window.__terrain.length,builders:bstat,
           wardrobe:window.__wardrobe,eqStats:window.__eqStats,eqDirOk:window.__eqDirOk,
@@ -845,13 +1191,57 @@ if(ACTORS&&setup.wild){const W=setup.wild;
     ` The list swaps at SUNRISE/SUNSET (05/19) because the tables themselves mark groups Night-only.`);}
 if(ACTORS&&setup.builders){const B=setup.builders;
   console.log(`  builder avatars: ${B.attributed}/${B.attributed+B.noMesh+B.unrecorded} build-out pieces`+
-    ` draw a builder ${JSON.stringify(B.byName)};`+
-    ` ${B.unrecorded} carry no recorded build_player_uid and draw NO avatar`+
+    ` draw a builder ${JSON.stringify(B.byName)}.`+
+    // Same shape as the equipment-provenance line: what is recorded, what is
+    // inferred, stated separately and never merged into one number.
+    ` Attribution provenance: ${B.recorded} use the piece's OWN recorded build_player_uid;`+
+    ` ${B.carried} have none recorded and CARRY FORWARD the last known builder in the order`+
+    ` — a rendering choice, not data, so that a decoration or a workbench the save leaves`+
+    ` unattributed is still shown being placed rather than appearing out of nothing`+
+    (B.carried?` (by category: ${JSON.stringify(B.carriedByCat)})`:'')+`.`+
+    ` ${B.unrecorded} precede any known builder in the order, so there is nothing to carry`+
+    ` and they still draw NO avatar`+
+    (B.unrecorded?` (${JSON.stringify(B.unrecordedByCat)})`:'')+
     (B.noMesh?`; ${B.noMesh} are attributed but have no resolvable extracted mesh (left undrawn, never substituted)`:'')+
     `. Appearance from Players/<uid>.sav; ${B.inexactLook} of the attributed pieces predate the`+
     ` surviving player-save window and use that player's earliest recorded look.`+
     ` Names come from the save's own guild rosters. Avatar POSITION is a rendering choice`+
     ` (stand on the piece just built, face the next) — the save records no per-piece build position.`);}
+if(ACTORS&&setup.changes){const C=setup.changes;
+  console.log(`  replay changes: ${C.adds} arrivals + ${C.removes} departures after the opening`+
+    ` snapshot; ${C.animated} draw an actor placing or removing the piece, ${C.unanimated} do not`+
+    (C.unanimated?` and STILL POP IN OR OUT SILENTLY ${JSON.stringify(C.unanimatedByCat)}`:'')+
+    `. Who: ${JSON.stringify(C.byName)}. Provenance ${JSON.stringify(C.byProv)} —`+
+    ` add:recorded is the piece's own build_player_uid; add:carried inherits the last known builder;`+
+    ` remove:pairedReplacement credits the builder of the piece that took the spot`+
+    ` (demolitions_${BASE}.json); remove:ownBuilder credits whoever BUILT the piece; remove:carried`+
+    ` inherits. Every removal attribution is INFERENCE — the save records no destruction event, no`+
+    ` demolisher and no time inside the gap between the last snapshot that has the piece and the`+
+    ` first that does not.`+
+    (C.carriedByCat&&Object.keys(C.carriedByCat).length?` Carried-forward by category:`+
+      ` ${JSON.stringify(C.carriedByCat)}.`:'')+
+    // The built/world split, so this count can be reconciled against
+    // demolitions_<b>.json's narrower removal census instead of looking inflated.
+    ` Of those, ${C.builtAdds} arrivals + ${C.builtRemoves} departures are BUILT PIECES;`+
+    ` ${C.worldAdds} + ${C.worldRemoves} are world objects that change on their own terms`+
+    ` (${JSON.stringify(C.worldByType)}) — a Pal egg that hatches, an ore node that was mined`+
+    ` and respawns. Those changes are animated too, but draw NO ACTOR (world-no-actor):`+
+    ` the save records no mining or hatching event and no responsible player.`);}
+if(ACTORS&&setup.loot){const L=setup.loot;
+  console.log(`  still unattended: ${L.rows} ground-loot rows (CommonDropItem3D) keep their own`+
+    ` recorded lifetime and get NO frame and NO actor — ${L.popIn} of them appear and ${L.popOut}`+
+    ` despawn during the render, unattended. Deliberate: loot is on the game's own 1 h despawn`+
+    ` timer, no player places or removes it, and giving each row a frame would bury every real`+
+    ` placement under litter. It is the ONLY class of thing this render still lets appear or`+
+    ` vanish on its own, and it is stated here rather than left to be discovered.`+
+    (L.tailBuilt+L.tailWorld
+      ?`  RESIDUAL, opposite sign: ${L.tailBuilt} built piece(s) and ${L.tailWorld} world object(s)`+
+       ` ${JSON.stringify(L.tailByType)} are last seen inside the ${L.tailGapSec}s between the last`+
+       ` BUILD step and the last snapshot we hold. There is no later step to hang a removal frame`+
+       ` on, so they are never shown going and remain on screen in the final frame although the`+
+       ` final save no longer has them. Nothing pops — they OVER-STAY, which is the opposite`+
+       ` failure and a much smaller one.`
+      :`  No removal of any kind falls past the last build step.`));}
 // The editor's grid is a flat 1m/10m lattice at y=0. With TerrainLayer drawing
 // the game's own ground it is redundant, it cuts visibly through real hills, and
 // its high-contrast lines sit right on top of the builder avatar — see
@@ -929,19 +1319,43 @@ const MIN_PRE_FRAMES=48;               // a 25-piece camp still deserves a beat
 const OPENING_PIECES=1;                // see the build-out plan loop below
 const steps=setup.tsList;
 const preCount=setup.preCount||0;
-// Replay is paced by real snapshots; one frame per snapshot is the natural
-// floor, MINFRAMES/2 keeps a base with very few snapshots from flashing past.
-const REPLAY_FRAMES=Math.max(Math.round(MINFRAMES*0.5),Math.min(steps.length,720));
+// ---- replay frame budget: driven by CHANGE COUNT, exactly as the build-out is
+// driven by piece count. Nothing may appear or disappear without a frame of its
+// own showing somebody doing it, so the floor is one frame per arrival and one
+// per departure, plus at least one frame per step so that a snapshot in which
+// nothing changed still lets the clock run.
+//
+// Anything left over after that floor goes to the steps with the largest IN-GAME
+// time gaps (the same log-compressed weighting the pacing has always used), so a
+// fortnight of nothing still costs a handful of frames and the sun visibly
+// travels across it.
+//
+// MAXFRAMES is the one thing that can force changes to share a frame. It is a
+// smoke-test cap, and when it bites the log says so explicitly rather than
+// quietly reintroducing the batch pop-in this whole mechanism exists to remove.
+const changeCounts=setup.changeCounts||steps.map(()=>0);
+const CHANGES=changeCounts.reduce((a,b)=>a+b,0);
+const REPLAY_NEED=changeCounts.reduce((a,c)=>a+Math.max(1,c),0);
+const REPLAY_WANT=Math.max(Math.round(MINFRAMES*0.5),Math.min(steps.length,720));
 const MAXFRAMES=process.env.MAXFRAMES?parseInt(process.env.MAXFRAMES):0;
+let REPLAY_FRAMES=Math.max(REPLAY_WANT,REPLAY_NEED);
 let PPF=parseFloat(process.env.PPF||'1');
-if(MAXFRAMES&&Math.ceil(preCount/PPF)+REPLAY_FRAMES>MAXFRAMES)
-  PPF=preCount/Math.max(MIN_PRE_FRAMES,MAXFRAMES-REPLAY_FRAMES);
+if(MAXFRAMES){
+  REPLAY_FRAMES=Math.max(steps.length,Math.min(REPLAY_FRAMES,MAXFRAMES-MIN_PRE_FRAMES));
+  if(Math.ceil(preCount/PPF)+REPLAY_FRAMES>MAXFRAMES)
+    PPF=preCount/Math.max(MIN_PRE_FRAMES,MAXFRAMES-REPLAY_FRAMES);
+}
 const PRE_FRAMES=Math.max(MIN_PRE_FRAMES,Math.ceil(preCount/PPF));
 const N=PRE_FRAMES+REPLAY_FRAMES;
-console.log(`${BASE} ${info.name}: ${preCount} pre-existing + ${steps.length} steps -> ${N} frames`+
+console.log(`${BASE} ${info.name}: ${preCount} pre-existing + ${steps.length} steps`+
+            ` (${CHANGES} arrivals+departures) -> ${N} frames`+
             ` (${PRE_FRAMES} build-out @ ${PPF.toFixed(2)} pieces/frame, ${REPLAY_FRAMES} replay)`+
             `  ~${(N/30).toFixed(0)}s of video, ~${(N*0.3/60).toFixed(1)} min to render.`+
             `  [PPF=n pieces per frame, MAXFRAMES=n for a quick smoke test]`);
+if(REPLAY_FRAMES<REPLAY_NEED)
+  console.log(`  !! MAXFRAMES capped the replay at ${REPLAY_FRAMES} frames against ${REPLAY_NEED}`+
+    ` needed for one change per frame, so ${CHANGES} changes will SHARE frames and pieces will`+
+    ` appear in batches. Smoke test only — a publishable render must not be capped.`);
 
 // ---- replay pacing: by the WORLD'S OWN CLOCK, not by wall clock ----------
 // Every snapshot's Level.sav carries worldSaveData.GameTimeSaveData
@@ -963,38 +1377,69 @@ if(GTFILL.filled) console.log(`  game clock: ${GTFILL.filled}/${steps.length} sn
   ` GameTimeSaveData entry; interpolated from measured neighbours (45 in-game s / real s)`);
 if(!GTFILL.ok) console.log(`  game clock: NO snapshot of this base has GameTimeSaveData`+
   ` -> uniform pacing, lighting held static`);
-// Inverse-CDF sample of a weighted step timeline: works in both directions,
-// whether there are more frames than steps (a busy step lingers for several
-// frames) or fewer (quiet runs of steps get merged into one frame), and the
-// in-game clock it hands back is monotonic either way.
-function paceReplay(count){
+// Frames are allocated to steps in two passes. First the FLOOR: every step gets
+// max(1, its change count), which is what guarantees each arrival and departure
+// its own frame. Then the SURPLUS is shared out on the log-compressed in-game
+// time weight by largest remainder, so the extra frames land where real time
+// actually passed rather than being spread evenly over snapshots that are
+// seconds apart. Both passes are pure functions of the data, so the allocation
+// is identical on a re-run.
+//
+// Every step is visited: unlike the old inverse-CDF sampling, no step can be
+// skipped now, because skipping one would skip its changes.
+function allocReplay(total){
   const W_STEP=1, K_TIME=2.2;
   const w=steps.map((_,j)=>{
     const a=stepGame[j], b=stepGame[j+1];
     const dg=(a!==null&&b!==null&&b>a)?b-a:0;
     return W_STEP + K_TIME*Math.log1p(dg/DAY);   // log = quiet stretches compress
   });
-  const cum=[]; let s=0; for(const x of w){s+=x;cum.push(s);}
+  const floor=changeCounts.map(c=>Math.max(1,c));
+  const need=floor.reduce((a,b)=>a+b,0);
+  if(total<need){
+    // MAXFRAMES bit. Share what there is in proportion to the floor, so the
+    // busiest steps still get the most frames and changes batch as evenly as
+    // possible. Announced above; never reached in an uncapped render.
+    const out=floor.map(f=>Math.max(1,Math.floor(total*f/need)));
+    let s=out.reduce((a,b)=>a+b,0);
+    for(let j=0;s>total&&j<out.length;j++) while(out[j]>1&&s>total){out[j]--;s--;}
+    for(let j=0;s<total;j=(j+1)%out.length){out[j]++;s++;}
+    return out;
+  }
+  const rest=total-need, W=w.reduce((a,b)=>a+b,0);
+  const share=w.map(x=>rest*x/W), add=share.map(Math.floor);
+  let used=add.reduce((a,b)=>a+b,0);
+  const order=share.map((x,j)=>[x-add[j],j]).sort((a,b)=>b[0]-a[0]);
+  for(let i=0;used<rest;i++,used++) add[order[i%order.length][1]]++;
+  return floor.map((f,j)=>f+add[j]);
+}
+// {j, k, gameSec} per replay frame. k is 1-based into that step's change list:
+// frame m of the M frames allotted to step j shows change ceil at m*C/M, so with
+// M >= C every change lands on a frame of its own and any surplus frames simply
+// hold the last change while the clock runs.
+const replayPlan=(()=>{
+  const alloc=allocReplay(N-PRE_FRAMES);
   const out=[];
-  for(let k=0;k<count;k++){
-    const target=count===1?s*0.5:(k+0.5)/count*s;
-    let lo=0,hi=steps.length-1;
-    while(lo<hi){const mid=(lo+hi)>>1; if(cum[mid]<target)lo=mid+1; else hi=mid;}
-    const j=lo, prev=j?cum[j-1]:0, span=cum[j]-prev;
-    const f=span>0?(target-prev)/span:0;
+  for(let j=0;j<steps.length;j++){
+    const M=alloc[j], C=changeCounts[j];
     const g0=stepGame[j], g1=(j+1<steps.length?stepGame[j+1]:g0);
-    out.push({j, gameSec:g0+(g1-g0)*f});
+    for(let m=0;m<M;m++){
+      const k=C?Math.min(C,Math.floor(m*C/M)+1):0;
+      const f=M===1?0:m/M;
+      out.push({j,k,gameSec:(GAMEPACE&&missingGame===0&&g0!==null&&g1!==null)?g0+(g1-g0)*f:g0});
+    }
   }
   return out;
-}
-const replayPlan=(GAMEPACE&&missingGame===0)?paceReplay(N-PRE_FRAMES):null;
-if(replayPlan){
-  const spanDays=(stepGame[steps.length-1]-stepGame[0])/DAY;
-  const per=new Map(); for(const p of replayPlan) per.set(p.j,(per.get(p.j)||0)+1);
-  console.log(`  in-game span ${spanDays.toFixed(1)} days; ${per.size}/${steps.length} steps shown,`+
-              ` frames/shown-step max=${Math.max(...per.values())}`);
-} else if(GAMEPACE){
-  console.log(`  in-game pacing OFF: ${missingGame}/${steps.length} steps have no GameTimeSaveData`);
+})();
+{
+  const per=replayPlan.reduce((m,p)=>m.set(p.j,(m.get(p.j)||0)+1),new Map());
+  const solo=changeCounts.reduce((a,c,j)=>a+(c<=(per.get(j)||0)?c:0),0);
+  if(stepGame[steps.length-1]!==null&&stepGame[0]!==null)
+    console.log(`  in-game span ${((stepGame[steps.length-1]-stepGame[0])/DAY).toFixed(1)} days;`+
+      ` ${per.size}/${steps.length} steps shown, frames/step max=${Math.max(...per.values())};`+
+      ` ${solo}/${CHANGES} changes get a frame to themselves`);
+  if(!GAMEPACE||missingGame)
+    console.log(`  in-game pacing OFF: ${missingGame}/${steps.length} steps have no GameTimeSaveData`);
 }
 
 // ---- pass 1: per-frame bounds of what is alive (cheap, no screenshots) ----
@@ -1038,19 +1483,11 @@ for(let i=0;i<PRE_FRAMES;i++){
              preRecent:Math.max(12,Math.round(preCount*0.02)),
              gameSec:buildoutGame});
 }
-if(replayPlan){
-  for(const r of replayPlan){
-    plan.push({t:steps[r.j],recentFrom:steps[Math.max(0,r.j-2)],preShown:preCount,preRecent:0,
-               gameSec:r.gameSec});
-  }
-} else {
-  const R=N-PRE_FRAMES;
-  for(let i=0;i<R;i++){
-    const f=i/Math.max(1,R-1);
-    const si=Math.min(steps.length-1,Math.floor(f*steps.length));
-    plan.push({t:steps[si],recentFrom:steps[Math.max(0,si-2)],preShown:preCount,preRecent:0,
-               gameSec:stepGame[si]});
-  }
+// j/k carry the replay frame's position in the change list; a build-out frame
+// has j===null and is driven by preShown as before.
+for(const r of replayPlan){
+  plan.push({t:steps[r.j],recentFrom:steps[Math.max(0,r.j-2)],preShown:preCount,preRecent:0,
+             j:r.j,k:r.k,gameSec:r.gameSec});
 }
 while(plan.length<N) plan.push(plan[plan.length-1]);
 plan.length=N;
@@ -1066,10 +1503,18 @@ plan.length=N;
       ` p90 ${jumps[Math.floor(jumps.length*0.9)].toFixed(2)} days (lighting is clamped below)`);
   }
 }
+// Resolve the exact on-screen actor through the same path the render uses, so
+// plan.json can prove every changing frame's identity and attribution.
 for(const p of plan){
-  const b=await page.evaluate((tt,rf,ps,pr)=>{window.__preShown=ps;window.__preRecent=pr;return window.__bounds(tt,rf);},
-    p.t,p.recentFrom,p.preShown,p.preRecent);
-  raw.push({t:p.t,b,preShown:p.preShown,preRecent:p.preRecent,gameSec:p.gameSec});
+  const r=await page.evaluate((tt,rf,ps,pr,sj,sk)=>{
+    window.__preShown=ps;window.__preRecent=pr;
+    const bb=window.__bounds(tt,rf);
+    const a=(sj===null||sj===undefined)?window.__builderAt(ps,tt):window.__changePose(sj,sk,tt);
+    return {b:bb,who:a?(a.name||a.uid):null,kind:a?(a.kind||'build'):null,
+            prov:a?a.attribution:null};
+  },p.t,p.recentFrom,p.preShown,p.preRecent,p.j===undefined?null:p.j,p.k===undefined?0:p.k);
+  raw.push({t:p.t,b:r.b,preShown:p.preShown,preRecent:p.preRecent,j:p.j,k:p.k,
+            gameSec:p.gameSec,who:r.who,kind:r.kind,prov:r.prov});
 }
 // ---- the ending must show the FINISHED BASE, not a detail ----------------
 // __bounds deliberately moves the camera in when a step's new pieces form a
@@ -1098,30 +1543,102 @@ const HEAD=0.10;
 const wideB=await page.evaluate((tt,pc)=>{window.__preShown=pc;window.__preRecent=0;
   return window.__bounds(tt,8e15);},steps[steps.length-1],preCount);
 
-// ---- smooth camera target + distance so it glides instead of snapping ----
+// ---- smooth camera target + RATCHETED distance ------------------------------
+// The user's complaint was "the camera rotating above keeps zooming in and out",
+// and the two halves of the shot are now separated so that only one of them can
+// cause it:
+//
+//   LOOK-AT  follows the recent-work box (damped by A). The active area is the
+//            thing worth watching and this is what puts it on screen.
+//   DISTANCE never follows the recent-work box, and never follows the live box
+//            downward either. It is a RUNNING MAX of the whole-base framing
+//            distance: a base only ever grows during the build-out, so the
+//            distance that frames it can only ever grow too. Once the camera has
+//            pulled out far enough to hold everything, it stays there.
+//
+// Why the running max and not just the live whole-base extents. Even with the
+// recent box out of the distance term, the live box still shrinks: the 0.5/99.5
+// percentile edges move as the piece count changes, and during replay pieces are
+// removed and the box contracts behind them. Each contraction is a small pull-in
+// followed by a push-out on the next frame, which is exactly the pumping the
+// complaint is about, just smaller. Measured on Wooden Camp: recent-box zoom
+// moved the camera IN on 377/878 frames by up to 6.34%; whole-base-but-live
+// still did it on 273/878; the ratchet leaves only the deliberate opening move.
+//
+// THE ONE REMAINING INWARD MOVE IS THE OPENING, and it is deliberate: HEAD
+// blends frame 0 out to the finished base's framing so the video opens on the
+// site rather than on a 2 m crate, then closes to the working distance over the
+// first HEAD of the run. That is one continuous smoothstep push-in, not an
+// oscillation, and the stability line below reports it separately so it cannot
+// be mistaken for a regression.
 const sm=[]; let cur=null;
+// The PRE-FIX camera, solved over the same frames, same damping, same ends
+// blend — the camera math is the only variable. Nothing is rendered from it; it
+// exists so `camera stability` below can print before/after side by side and the
+// claim "the pumping is gone" is a measurement rather than an opinion.
+const smOld=[]; let curOld=null;
 const A=0.12;
+// The distance that frames a w x h box at this FOV/aspect, with the same 1.45
+// margin and the same 6 m floor the old inline expression used.
+const distFor=(w,h)=>Math.max((Math.max(h,6)/2)/Math.tan(FOV/2),
+                              (Math.max(w,6)/2)/Math.tan(Math.atan(Math.tan(FOV/2)*ASPECT)))*1.45;
+// The finished base, i.e. the widest the shot is ever asked to be. HEAD and TAIL
+// blend toward THIS, and because the ratchet below can never exceed it they can
+// only ever push the camera OUT.
+const dWide=wideB?distFor(wideB.w,wideB.h):null;
+let dPeak=0;                       // running max of the whole-base framing distance
+const headFrames=Math.max(1,Math.round(raw.length*HEAD));
 for(let i=0;i<raw.length;i++){
   const r=raw[i];
   let b=r.b||(cur?{tx:cur.tx,ty:cur.ty,tz:cur.tz,w:cur.w,h:cur.h,n:0}:{tx:0,ty:0,tz:0,w:10,h:10,n:0});
+  // The LOOK-AT still blends to the whole-base centre at both ends of the run:
+  // the opening establishes the site and the ending must land on the finished
+  // base, not on whichever detail was worked on last.
+  let kEnds=0;
   if(wideB){
     const p0=raw.length<2?1:i/(raw.length-1);
     const u=Math.max(0,(p0-(1-TAIL))/TAIL);            // 0 -> 1 across the ending
     const k=u*u*(3-2*u);                       // smoothstep: no kink where it starts
-    if(k>0) b={tx:b.tx+(wideB.tx-b.tx)*k, ty:b.ty+(wideB.ty-b.ty)*k,
-               tz:b.tz+(wideB.tz-b.tz)*k, w:b.w+(wideB.w-b.w)*k, h:b.h+(wideB.h-b.h)*k, n:b.n};
     const v=Math.max(0,1-p0/HEAD);             // 1 at frame 0 -> 0 at p0=HEAD
     const kh=v*v*(3-2*v);                      // same smoothstep, mirrored
-    if(kh>0) b={tx:b.tx+(wideB.tx-b.tx)*kh, ty:b.ty+(wideB.ty-b.ty)*kh,
-                tz:b.tz+(wideB.tz-b.tz)*kh, w:b.w+(wideB.w-b.w)*kh, h:b.h+(wideB.h-b.h)*kh, n:b.n};
+    kEnds=Math.max(k,kh);
+    if(kEnds>0) b={tx:b.tx+(wideB.tx-b.tx)*kEnds, ty:b.ty+(wideB.ty-b.ty)*kEnds,
+                   tz:b.tz+(wideB.tz-b.tz)*kEnds, w:b.w, h:b.h, n:b.n};
   }
-  const dV=(Math.max(b.h,6)/2)/Math.tan(FOV/2);
-  const dH=(Math.max(b.w,6)/2)/Math.tan(Math.atan(Math.tan(FOV/2)*ASPECT));
-  const want={tx:b.tx,ty:b.ty,tz:b.tz,w:b.w,h:b.h,d:Math.max(dV,dH)*1.45};
+  // Distance is derived from the UNBLENDED whole-base extents and then ratcheted,
+  // so neither a blend nor a contraction of the live box can pull it in. The
+  // ends' blend is applied only where it would push OUT (max(0,...)), which is
+  // the normal case since dWide frames the finished base — the guard matters
+  // only where a mid-history base was momentarily wider than the final one.
+  dPeak=Math.max(dPeak,distFor(b.w,b.h));
+  const dEnds=dWide!==null?dPeak+Math.max(0,dWide-dPeak)*kEnds:dPeak;
+  const want={tx:b.tx,ty:b.ty,tz:b.tz,w:b.w,h:b.h,d:dEnds};
   cur = cur ? {tx:cur.tx+(want.tx-cur.tx)*A, ty:cur.ty+(want.ty-cur.ty)*A,
                tz:cur.tz+(want.tz-cur.tz)*A, w:want.w, h:want.h,
                d:cur.d+(want.d-cur.d)*A} : want;
   sm.push({...cur});
+  // ---- the same frame, solved the OLD way (measurement only) ----------------
+  // Verbatim pre-fix behaviour: the ends blend moves the framed EXTENTS as well
+  // as the look-at, the distance is read straight off those extents with no
+  // ratchet, and the recent-work box is inside those extents (lw/lh).
+  {
+    let ob=r.b?{tx:r.b.tx,ty:r.b.ty,tz:r.b.tz,w:r.b.lw??r.b.w,h:r.b.lh??r.b.h}
+              :(curOld?{tx:curOld.tx,ty:curOld.ty,tz:curOld.tz,w:curOld.w,h:curOld.h}
+                      :{tx:0,ty:0,tz:0,w:10,h:10});
+    if(wideB){
+      const p0=raw.length<2?1:i/(raw.length-1);
+      const u=Math.max(0,(p0-(1-TAIL))/TAIL), k=u*u*(3-2*u);
+      const v=Math.max(0,1-p0/HEAD), kh=v*v*(3-2*v);
+      for(const kk of [k,kh]) if(kk>0)
+        ob={tx:ob.tx+(wideB.tx-ob.tx)*kk, ty:ob.ty+(wideB.ty-ob.ty)*kk,
+            tz:ob.tz+(wideB.tz-ob.tz)*kk, w:ob.w+(wideB.w-ob.w)*kk, h:ob.h+(wideB.h-ob.h)*kk};
+    }
+    const wantOld={tx:ob.tx,ty:ob.ty,tz:ob.tz,w:ob.w,h:ob.h,d:distFor(ob.w,ob.h)};
+    curOld = curOld ? {tx:curOld.tx+(wantOld.tx-curOld.tx)*A, ty:curOld.ty+(wantOld.ty-curOld.ty)*A,
+                       tz:curOld.tz+(wantOld.tz-curOld.tz)*A, w:wantOld.w, h:wantOld.h,
+                       d:curOld.d+(wantOld.d-curOld.d)*A} : wantOld;
+    smOld.push({...curOld});
+  }
 }
 
 // ---- LIGHTING: skip whole days, and CLAMP how fast the sun may move ------
@@ -1198,11 +1715,19 @@ const lightHour=[]; let maxLag=0;
 // file) are the only honest way to say whether a camera change fixed anything.
 fs.writeFileSync(`${OUT}/plan.json`, JSON.stringify(plan.map((p,i)=>({
   frame:i, phase:i<PRE_FRAMES?'build-out':'replay', snapshotTs:p.t,
+  step:p.j===undefined?null:p.j, change:p.k===undefined?null:p.k,
+  who:raw[i].who??null, kind:raw[i].kind??null, attribution:raw[i].prov??null,
   gameDay:p.gameSec===null?null:Math.floor(p.gameSec/DAY),
   gameHour:p.gameSec===null?null:+(((p.gameSec%DAY)/3600).toFixed(3)),
   litHour:lightHour[i]===null?null:+lightHour[i].toFixed(3),
   camDist:+sm[i].d.toFixed(3),
   camTx:+sm[i].tx.toFixed(3), camTy:+sm[i].ty.toFixed(3), camTz:+sm[i].tz.toFixed(3),
+  // The pre-fix camera solved over this same frame. NOT rendered — it is here so
+  // the before/after in the log can be recomputed from the file by anyone who
+  // doubts it, which is the whole point of reporting a number instead of a claim.
+  camDistLegacy:+smOld[i].d.toFixed(3),
+  camTxLegacy:+smOld[i].tx.toFixed(3), camTyLegacy:+smOld[i].ty.toFixed(3),
+  camTzLegacy:+smOld[i].tz.toFixed(3),
 }))));
 // ---- camera stability, measured ---------------------------------------------
 // Reported every run so a regression is visible in the log rather than only in
@@ -1210,19 +1735,57 @@ fs.writeFileSync(`${OUT}/plan.json`, JSON.stringify(plan.map((p,i)=>({
 // distance itself (a 1 m twitch means something different at 20 m than at
 // 200 m); dt = frame-to-frame change in the LOOK-AT point, in metres.
 {
-  const dd=[],dt=[];
-  for(let i=1;i<sm.length;i++){
-    dd.push(Math.abs(sm[i].d-sm[i-1].d)/Math.max(1e-6,sm[i-1].d)*100);
-    dt.push(Math.hypot(sm[i].tx-sm[i-1].tx,sm[i].ty-sm[i-1].ty,sm[i].tz-sm[i-1].tz));
-  }
   const pct=(a,q)=>{const s=a.slice().sort((x,y)=>x-y);return s[Math.min(s.length-1,Math.floor(s.length*q))];};
-  let pulls=0,maxPull=0;
-  for(let i=1;i<sm.length;i++){const d=sm[i-1].d-sm[i].d; if(d>0){pulls++;maxPull=Math.max(maxPull,d/sm[i-1].d*100);}}
-  if(dd.length) console.log(`  camera stability: |d dist| p50 ${pct(dd,0.5).toFixed(3)}%`+
-    ` p90 ${pct(dd,0.9).toFixed(3)}% p99 ${pct(dd,0.99).toFixed(3)}% max ${pct(dd,1).toFixed(3)}%;`+
-    ` |d target| p50 ${pct(dt,0.5).toFixed(3)}m p90 ${pct(dt,0.9).toFixed(3)}m p99 ${pct(dt,0.99).toFixed(3)}m`+
-    ` max ${pct(dt,1).toFixed(3)}m; frames where the camera moved IN: ${pulls}/${sm.length-1}`+
-    ` (largest ${maxPull.toFixed(3)}%)`);
+  // One measurement, run over both camera solutions. `pullsAfterHead` is the
+  // number that matters: inward moves before headFrames are the deliberate
+  // one-way opening push-in (see the HEAD note above), everything after it is
+  // pumping and should be zero now that the distance is ratcheted.
+  const measure=(S)=>{
+    const dd=[],dt=[];
+    for(let i=1;i<S.length;i++){
+      dd.push(Math.abs(S[i].d-S[i-1].d)/Math.max(1e-6,S[i-1].d)*100);
+      dt.push(Math.hypot(S[i].tx-S[i-1].tx,S[i].ty-S[i-1].ty,S[i].tz-S[i-1].tz));
+    }
+    let pulls=0,maxPull=0,pullsAfterHead=0,maxPullAfterHead=0;
+    for(let i=1;i<S.length;i++){const d=S[i-1].d-S[i].d; if(d>0){
+      pulls++;maxPull=Math.max(maxPull,d/S[i-1].d*100);
+      if(i>=headFrames){pullsAfterHead++;maxPullAfterHead=Math.max(maxPullAfterHead,d/S[i-1].d*100);}}}
+    // PUMPING IS REVERSALS, not inward frames. One long damped push-in registers
+    // as hundreds of inward frames and is not a pump; in-out-in-out at the same
+    // amplitude is. Counting sign flips of the distance derivative separates the
+    // two, and it is what stops the `pullsAfterHead` split from being gamed by
+    // where exactly the opening window is drawn (the damped opening move
+    // overshoots headFrames by a frame or two on a short base).
+    let rev=0,prev=0;
+    for(let i=1;i<S.length;i++){
+      const dl=S[i].d-S[i-1].d;
+      if(Math.abs(dl)<1e-9) continue;
+      const s=Math.sign(dl);
+      if(prev&&s!==prev) rev++;
+      prev=s;
+    }
+    return {dd,dt,pulls,maxPull,pullsAfterHead,maxPullAfterHead,rev,n:S.length-1};
+  };
+  const fmt=(m)=>`|d dist| p50 ${pct(m.dd,0.5).toFixed(3)}% p90 ${pct(m.dd,0.9).toFixed(3)}%`+
+    ` p99 ${pct(m.dd,0.99).toFixed(3)}% max ${pct(m.dd,1).toFixed(3)}%;`+
+    ` |d target| p50 ${pct(m.dt,0.5).toFixed(3)}m p90 ${pct(m.dt,0.9).toFixed(3)}m`+
+    ` p99 ${pct(m.dt,0.99).toFixed(3)}m max ${pct(m.dt,1).toFixed(3)}m;`+
+    ` moved IN on ${m.pulls}/${m.n} frames (largest ${m.maxPull.toFixed(3)}%),`+
+    ` ${m.pullsAfterHead} of them outside the deliberate opening push-in`+
+    ` (first ${headFrames} frames) (largest ${m.maxPullAfterHead.toFixed(3)}%);`+
+    ` ${m.rev} in/out DIRECTION REVERSALS (this is the pumping metric)`;
+  const now=measure(sm), was=measure(smOld);
+  if(now.dd.length){
+    console.log(`  camera stability AFTER  (rendered): ${fmt(now)}`);
+    console.log(`  camera stability BEFORE (pre-fix camera, same frame plan, same damping,`+
+      ` recomputed not rendered): ${fmt(was)}`);
+    console.log(`  camera pumping removed: in/out reversals ${was.rev} -> ${now.rev};`+
+      ` inward moves outside the opening`+
+      ` ${was.pullsAfterHead} -> ${now.pullsAfterHead}, largest single pull-in`+
+      ` ${was.maxPullAfterHead.toFixed(3)}% -> ${now.maxPullAfterHead.toFixed(3)}%.`+
+      ` The distance is now a running max of the WHOLE-BASE framing distance, so it can`+
+      ` only ratchet outward; the recent-work box steers the LOOK-AT only.`);
+  }
 }
 // ---- pass 2: render ----
 // ---- frame cache: reuse is only valid if the PLAN is unchanged -----------
@@ -1392,7 +1955,9 @@ for(let i=0;i<N;i++){
   const c=sm[i];
   const az=frac*360*TURNS+25, el=28+10*Math.sin(frac*Math.PI*2);
   const hour=lightHour[i];        // already day-skipped and speed-clamped above
-  const cnt=await page.evaluate((tt,ps,a,d,e,tx,ty,tz,hr,act)=>{const n=window.__frame(tt,ps);
+  const cnt=await page.evaluate((tt,ps,a,d,e,tx,ty,tz,hr,act,sj,sk)=>{
+    // Build-out frames are driven by preShown; replay frames by (step, change).
+    const n=(sj===null||sj===undefined)?window.__frame(tt,ps):window.__frameStep(sj,sk);
     window.__orbit(a,d,e,tx,ty,tz);
     if(window.__mappalCam.setDaylight) window.__mappalCam.setDaylight(hr);
     if(act&&window.__mappalCam.setPals){
@@ -1403,22 +1968,27 @@ for(let i=0;i<N;i++){
       // save at all (only with the in-game hour). Neither affects camera framing.
       window.__mappalCam.setPals(window.__palsAt(tt).concat(window.__wildAt(hr)));
       window.__mappalCam.setPlayers(window.__playersAt(tt));
-      // The player the save credits with the piece revealed at this preShown,
-      // standing beside it. null for an unrecorded or system-built piece.
+      // Whoever the frame says is acting: during the build-out the player
+      // credited with the piece revealed at this preShown, during the replay the
+      // one placing or removing change k of step j. A frame that changes nothing
+      // (a step whose surplus frames only let the clock run) draws NOBODY —
+      // which is the honest answer, and better than the old behaviour of
+      // re-drawing the last build-out builder standing still for the whole
+      // replay. Recorded players keep being drawn by setPlayers either way.
       if(window.__mappalCam.setBuilder){
-        // A demolition, where one is inferred for this moment, outranks the
-        // frozen end-of-build-out builder: during replay the build order has
-        // nothing left to place, so the only thing happening at this spot is the
-        // piece changing hands. See __demoAt for how much of that is inference.
-        const dm=window.__demoAt(ps,tt);
-        if(dm) window.__demoFrames=(window.__demoFrames||0)+1;
-        const bb=dm||window.__builderAt(ps,tt);
-        window.__whoNow=bb?bb.name:null;
-        window.__mappalCam.setBuilder(bb);
+        const bb=(sj===null||sj===undefined)?window.__builderAt(ps,tt)
+                                            :window.__changePose(sj,sk,tt);
+        if(bb){ const s=window.__drawStats||(window.__drawStats={});
+                const key=(bb.kind||'build')+':'+bb.attribution; s[key]=(s[key]||0)+1; }
+        const draw=(bb&&bb.parts)?bb:null;
+        window.__whoNow=draw?draw.name:null;
+        window.__poseNow=draw||null;    // CLOSEUP aims at THIS, not at a scene scan
+        window.__mappalCam.setBuilder(draw);
       }
     }
     return n;},
-    raw[i].t,raw[i].preShown,az,c.d,el,c.tx,c.ty,c.tz,hour,ACTORS);
+    raw[i].t,raw[i].preShown,az,c.d,el,c.tx,c.ty,c.tz,hour,ACTORS,
+    raw[i].j===undefined?null:raw[i].j, raw[i].k===undefined?0:raw[i].k);
   // 55 ms is enough for an incremental change, but the first frame this process
   // actually draws follows the whole scene being built and needs longer: at
   // 55 ms it screenshotted a half-drawn scene, giving that frame a mean
@@ -1436,18 +2006,20 @@ for(let i=0;i<N;i++){
   // questions, and confusing them is what made this take three attempts. A
   // closeup answers the first one in one image.
   if(process.env.CLOSEUP){
-    const wp=await page.evaluate(()=>{
-      const sc=window.__mappalCam.scene; let p=null;
-      sc.traverse(o=>{if(!p&&o.name==='__avatarPart'){o.updateWorldMatrix(true,false);
-        p=[o.matrixWorld.elements[12],o.matrixWorld.elements[13],o.matrixWorld.elements[14]];}});
-      return p;});
+    // Aim at the pose the frame ACTUALLY DREW (window.__poseNow, straight from
+    // __builderAt/__changePose), so the closeup answers "is the credited actor
+    // there, at the piece that changed" rather than "is there a human somewhere
+    // in this scene". A frame that draws nobody says so and writes no closeup.
+    const wp=await page.evaluate(()=>{const b=window.__poseNow;
+      return b?{p:window.__toScene(b.x,b.y,b.z),who:b.name||b.uid,kind:b.kind||'build',
+                prov:b.attribution}:null;});
     if(wp){
       const D=parseFloat(process.env.CLOSEUP);
-      await page.evaluate((t,d)=>{window.__mappalCam.setView([t[0]+d,t[1]+d*0.4,t[2]+d],[t[0],t[1]+0.8,t[2]]);},wp,D);
+      await page.evaluate((t,d)=>{window.__mappalCam.setView([t[0]+d,t[1]+d*0.4,t[2]+d],[t[0],t[1]+0.8,t[2]]);},wp.p,D);
       await new Promise(r=>setTimeout(r,600));
       await page.screenshot({path:`${OUT}/closeup_${String(i).padStart(4,'0')}.png`});
-      console.log('CLOSEUP at',wp.map(v=>+v.toFixed(2)).join(','));
-    } else console.log('CLOSEUP: no __avatarPart in scene');
+      console.log(`CLOSEUP frame ${i}: ${wp.who} ${wp.kind}:${wp.prov} at ${wp.p.map(v=>+v.toFixed(2)).join(',')}`);
+    } else console.log(`CLOSEUP frame ${i}: this frame draws NOBODY`);
   }
   // WHO=1 logs the name on the tag per frame. Diagnostic, off by default, and
   // kept because "does the avatar switch when the recorded builder changes" is
@@ -1494,7 +2066,7 @@ for(let i=0;i<N;i++){
 // and the file it comes from says in as many words: do not render it as an
 // instant unless it is labelled as "sometime in this window". It is labelled.
 // Nothing here claims to know who, why, or exactly when.
-const EOL=(()=>{ try{ return JSON.parse(fs.readFileSync(`${SP}/mappal/public/union/endoflife_${BASE}.json`)); }
+const EOL=(()=>{ try{ return JSON.parse(fs.readFileSync(`${UNION_DIR}/endoflife_${BASE}.json`)); }
                  catch(e){ return null; } })();
 if(EOL&&!EOL.endOfLife)
   console.log(`  end of life: ${EOL.name} is still standing in the final snapshot we hold`+
@@ -1568,7 +2140,16 @@ if(EOL&&EOL.endOfLife&&!process.env.NOENDING){
     ` no removal time and this render does not invent one.`);
 }
 
-const _dstat=await page.evaluate(()=>({demoFrames:window.__demoFrames||0,demos:(window.__demolitions||[]).length}));
-console.log(`  demolition avatars: ${_dstat.demoFrames} frames drew an inferred demolition (${_dstat.demos} pairs in demolitions_${BASE}.json)`);
+// What the frames that were ACTUALLY RENDERED drew, keyed by change kind and
+// attribution source. The setup-time `replay changes` line above says what the
+// data contains; this one says what this run put on screen, so a run rendered
+// with ONLY_FRAMES or a MAXFRAMES cap cannot be mistaken for a full one.
+const _dstat=await page.evaluate(()=>({draws:window.__drawStats||{},
+  demos:(window.__demolitions||[]).length}));
+console.log(`  avatar draws this run, by kind:attribution: ${JSON.stringify(_dstat.draws)}`+
+  ` (build:* is the reconstructed build-out, add:* an arrival, remove:* a departure;`+
+  ` ${_dstat.demos} of the departures are paired with a replacement in demolitions_${BASE}.json`+
+  ` and the rest are attributed to whoever BUILT the piece, or carried forward — all of it inference,`+
+  ` since the save records no destruction event at all)`);
 console.log(`${BASE} done: rendered ${done}, reused ${skipped}, ${((Date.now()-start)/1000).toFixed(0)}s`);
 await browser.close();

@@ -1,7 +1,7 @@
 #!/bin/bash
-SP="${PALTL_WORK:?set PALTL_WORK to your timelapse work directory}"
+SP="${PALTL_WORK:-$(pwd)}"
 OUT=$SP/video; mkdir -p $OUT
-for b in 07f13218 de44d9f4 16fca097 5fed0024; do
+for b in 07f13218 de44d9f4 16fca097 5fed0024 c0105eum; do
   n=$(ls $SP/frames/$b/*.png 2>/dev/null | wc -l)
   [ "$n" -lt 2 ] && { echo "skip $b (no frames)"; continue; }
   ffmpeg -y -loglevel error -framerate 30 -i $SP/frames/$b/f_%04d.png \

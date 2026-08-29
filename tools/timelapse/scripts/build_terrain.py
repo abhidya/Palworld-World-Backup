@@ -45,10 +45,13 @@ applies its own UE->three transform.
 """
 import json, math, os, re, struct, sys
 
-SP = os.path.dirname(os.path.abspath(__file__))
+SP = os.environ.get("TERRAIN_SP") or os.environ.get("PALTL_WORK", os.path.dirname(os.path.abspath(__file__)))
+APP = os.environ.get("MAPPAL_ROOT", f"{SP}/mappal")
 BASES = {"5fed0024": (-216463, 2028, 12482), "07f13218": (-338615, 341498, 6995),
          "16fca097": (-352470, 270982, 7784), "de44d9f4": (-71, -138355, 3538)}
-OUT_MESH = f"{SP}/mappal/public/terrain_meshes"
+BASES["c0105eum"] = (9000, 98100, 4836)  # surveyed render anchor; not a camp
+OUT_MESH = os.environ.get("OUT_MESH", f"{APP}/public/terrain_meshes")
+OUT_UNION = os.environ.get("OUT_UNION", f"{APP}/public/union")
 # The clipped landscape tiles and the merged ocean/river meshes are written into
 # public/terrain_meshes, which every concurrent render streams from. A re-run
 # that only changes the JSON (see the footprint section at the bottom) has no
@@ -90,10 +93,36 @@ FOLIAGE_CAP = int(os.environ.get("FOLIAGE_CAP", 3000))
 # nearest-first cap is exhausted inside ~60 m by ground cover and the painted
 # rocks never make it out. They are terrain, so they are drawn as terrain.
 GROUND_FOLIAGE_CAP = int(os.environ.get("GROUND_FOLIAGE_CAP", 2000))
+# Trees get their own nearest-first budget. At Stone Works, flowers and grass
+# otherwise exhaust the decorative cap before the large tree silhouettes.
+# 1600 currently holds every tree within range at all five sites.
+TREE_CAP = int(os.environ.get("TREE_CAP", 1600))
 
 # The walkable/visible terrain chunks, by the naming the level uses for them.
-GROUND_KEYS = ("ground", "_top", "top_", "flat_horizontal", "rockyground",
-               "hugecliff", "cliff", "terrain", "field")
+#
+# MATCHED AT A WORD START, not as a bare substring — see _at_word_start below.
+# The old list carried "_top" and "top_" as literal substrings and that is a
+# defect, not a style point: "top_" occurs inside "Desk|top|_1", so every
+# Oak_White_Desktop_*, Palm_Yucca_Desktop_* and Spruce_Norway_Desktop_* in the
+# level matched a GROUND key. For the oaks and palms is_plant() caught it first
+# and the comment below records that near-miss; for the SPRUCES nothing did (see
+# PLANT_KEYS), so 1,477 trees at the snowfield site and 73 across two live bases
+# were classed as terrain and drawn on the ground budget at the 600 m ground
+# radius. Anchoring the key to a word start kills that match and keeps every
+# real one, including the plurals ("CliffsAndRocksPack") that a both-ends
+# anchor would have lost.
+#
+# "background" is listed EXPLICITLY and is not padding. SM_undearsea_
+# MountainBackground_04 - 1 instance at Lost Camp, 2 at Wooden Camp - used to
+# reach the 600 m ground radius only because "ground" happens to occur inside
+# "Back|ground|". Anchoring would have cut it to the 300 m prop radius and
+# dropped all three. It is a distant mountain silhouette, which is precisely
+# what this module's header calls ground ("what stop the world visibly ending"),
+# so it is claimed on purpose rather than kept by accident. Naming it here is
+# what makes the anchoring change a NO-OP at the four live bases apart from the
+# spruce reclassification it exists to fix.
+GROUND_KEYS = ("ground", "top", "flat_horizontal", "rockyground",
+               "hugecliff", "cliff", "terrain", "field", "background")
 # ...and by the ASSET PACK they come out of, because a chunk's mesh NAME is not
 # always descriptive. The Mega3D_GrayCliffRock set is the clearest case: its
 # meshes are called c01-5k .. c08-8k, which matches none of GROUND_KEYS, so 203
@@ -120,7 +149,28 @@ FOG_MATERIAL_KEYS = ("fogvolume",)
 PLANT_KEYS = ("tree", "oak", "alder", "sycamore", "banyan", "pine", "palm",
               "birch", "maple", "cherry", "sakura", "bush", "shrub", "grass",
               "flower", "fern", "leaf", "leaves", "ivy", "amaryllis", "clover",
-              "geranium", "taro", "moss", "vine", "plant", "bamboo", "reed")
+              "geranium", "taro", "moss", "vine", "plant", "bamboo", "reed",
+              # SPRUCE AND CYPRESS. Not cosmetic, and not specific to one site.
+              # Neither species word was in the list, so is_plant() said False
+              # for every Spruce_Norway_Desktop_<n>_Forest in the world, with
+              # two consequences:
+              #   1. is_ground() then matched the GROUND key "top_" inside
+              #      "Desk|top|_1" and the tree was classed as TERRAIN, drawn on
+              #      the ground budget at the 600 m ground radius;
+              #   2. the built-footprint cull only touches plants, so no spruce
+              #      ever got a cullBy and a trunk inside a base's footprint
+              #      grew straight up through the floor built over it.
+              # Live impact when this was found: 55 spruces at Lost Camp
+              # (5fed0024) and 18 at Stone Works (de44d9f4), all mis-classed and
+              # all un-cullable. "Cypress_Italian_Hero_4_Field_002_snow" is the
+              # same failure through the GROUND key "field" — the very case the
+              # comment above records for oaks. Both are trees; they are drawn
+              # as trees, at prop range, out of the ground budget.
+              "spruce", "cypress")
+# Budget class only: every key is also a plant key, so footprint culling and
+# terrain classification remain unchanged.
+TREE_KEYS = ("tree", "oak", "alder", "sycamore", "banyan", "pine", "palm",
+             "birch", "maple", "cherry", "sakura", "spruce", "cypress")
 # Sub-metre ground cover placed in the hundreds of thousands (674k + 466k
 # instances world-wide). It does not read at the camera distances the timelapse
 # uses and would be ~100x the whole rest of the scene, so it is excluded and
@@ -150,14 +200,57 @@ def is_plant(name):
     surface the base stands on — so removing one under a deck would punch a hole
     in the ground rather than tidy the shot.
     """
-    return any(k in (name or "").lower() for k in PLANT_KEYS)
+    # Word-start matching prevents asset-pack names such as b00grass_Lodenfel
+    # (stone ruins) and *_top_longgrass (rocks) from being culled as foliage.
+    return _has_key(name or "", PLANT_KEYS)
+
+
+def _at_word_start(s, i):
+    """True when index i begins a WORD of the asset name s.
+
+    Cooked asset names mix snake_case with CamelCase in the same string
+    ("SM_pal_b00_cliff_ground_CliffsAndRocksPack_TOP_02"), so a word starts at
+    the string start, immediately after a non-alphanumeric separator, or at a
+    lower->UPPER hump. Nothing else counts, which is the whole point: "top"
+    inside "Desktop" starts after a lowercase "k" and is therefore not a word.
+    """
+    if i == 0:
+        return True
+    prev = s[i - 1]
+    if not prev.isalnum():
+        return True
+    return prev.islower() and s[i].isupper()
+
+
+def _has_key(name, keys):
+    """Does any key occur in `name` STARTING AT A WORD BOUNDARY?
+
+    Only the START is anchored, deliberately. Anchoring the end as well would
+    drop "cliff" out of "CliffsAndRocksPack" and "Cliffs_..." — 1,600+ genuine
+    rock chunks across the four live bases — for no gain, because every false
+    match this rule exists to stop ("top" in "Desktop", "ground" in
+    "Background") is one where the key starts mid-word.
+    """
+    low = (name or "").lower()
+    for k in keys:
+        i = low.find(k)
+        while i >= 0:
+            if _at_word_start(name, i):
+                return True
+            i = low.find(k, i + 1)
+    return False
+
+
+def is_tree(name):
+    """A plant that draws on TREE_CAP rather than the decorative budget."""
+    return _has_key(name or "", TREE_KEYS)
 
 
 def is_ground(name, path=None):
-    n = (name or "").lower()
-    if any(k in n for k in PLANT_KEYS):
+    # Vegetation first: a plant is never terrain, whatever else its name says.
+    if is_plant(name):
         return False
-    if any(k in n for k in GROUND_KEYS):
+    if _has_key(name or "", GROUND_KEYS):
         return True
     p = (path or "").lower()
     return any(k in p for k in GROUND_PATH_KEYS)
@@ -234,17 +327,17 @@ def selected_foliage(acts, ifa, bx, by):
 
 
 def capped_foliage(fol):
-    """Nearest-first, but ground-class instances draw on their own budget.
-
-    Same ordering as before; the only change is that a painted rock/cliff no
-    longer has to out-rank a flower to be drawn.
-    """
-    out, n_dec, n_gnd = [], 0, 0
+    """Nearest-first, with independent decorative, ground and tree budgets."""
+    out, n_dec, n_gnd, n_tree = [], 0, 0, 0
     for t in fol:
         if is_ground(t[1], t[2]):
             if n_gnd >= GROUND_FOLIAGE_CAP:
                 continue
             n_gnd += 1
+        elif is_tree(t[1]):
+            if n_tree >= TREE_CAP:
+                continue
+            n_tree += 1
         else:
             if n_dec >= FOLIAGE_CAP:
                 continue
@@ -279,7 +372,7 @@ def capped_foliage(fol):
 # under an elevated deck and leave it growing through the floor, which is the
 # defect.
 FOOTPRINT_MARGIN = float(os.environ.get("FOOTPRINT_MARGIN", 100))
-_REG = json.load(open(f"{SP}/mappal/src/data/objects.json"))["types"]
+_REG = json.load(open(f"{APP}/src/data/objects.json"))["types"]
 # A type with no measured box still occupies ground. objects.json's own renderer
 # fallback for an unregistered type is a 100 cm cube (objectTypes.ts), so the
 # footprint uses the same number rather than inventing a size or ignoring the
@@ -289,7 +382,7 @@ _UNSIZED_BOX = 100.0
 
 def built_footprint(base):
     """One oriented XY rectangle per placed piece: (x, y, cos, sin, hx, hy, id)."""
-    u = json.load(open(f"{SP}/mappal/public/union/union_{base}.json"))
+    u = json.load(open(f"{APP}/public/union/union_{base}.json"))
     out, unsized = [], 0
     for e in u["map_objects"]:
         tid = e["MapObjectId"]["value"]
@@ -563,9 +656,10 @@ print(f"{b}: {len(near)} placed meshes ({ngrd} ground < {GROUND_R/100:.0f} m, "
 
 # Only emit props whose GLB actually came out of the extractor.
 have = set()
-rep = f"{SP}/terrain_manifest_uv_report.json"
-if os.path.exists(rep):
-    have = {r["name"] for r in json.load(open(rep)) if r.get("ok")}
+for rep in (f"{SP}/terrain_manifest_uv_report.json",
+            f"{SP}/terrain_manifest_col_uv_report.json"):
+    if os.path.exists(rep):
+        have |= {r["name"] for r in json.load(open(rep)) if r.get("ok")}
 
 out, skipped = [], 0
 for d, r in near:
@@ -589,8 +683,17 @@ fol_total = len(fol_all)
 fol = capped_foliage(fol_all)
 nfol = 0
 fol_kinds = {}
+# A foliage instance whose mesh never came out of the extractor used to be
+# dropped here without a word, which is the one thing this file is not allowed
+# to do: silence reads as "there is nothing there". It is a real failure with a
+# real cause (pal_b00_grass_snow_Fern_01 exports no mesh section at all, so
+# there is no geometry to write), and NOTHING is substituted for it - drawing a
+# different fern would be inventing ground cover. So it is counted by mesh and
+# stated below, exactly like the placed-prop `skipped` counter already is.
+fol_missing = {}
 for d, mesh, mpath, x, y, z, i in fol:
     if have and mesh not in have:
+        fol_missing[mesh] = fol_missing.get(mesh, 0) + 1
         continue
     out.append({"mesh": mesh, "url": f"/terrain_meshes/{mesh}.glb",
                 "x": round(x, 1), "y": round(y, 1), "z": round(z, 1),
@@ -601,8 +704,12 @@ for d, mesh, mpath, x, y, z, i in fol:
     nfol += 1
 print(f"  foliage: {nfol} instances emitted of {fol_total} within {FOLIAGE_R/100:.0f} m "
       f"({len(fol_kinds)} mesh types; nearest-first, caps {FOLIAGE_CAP} "
-      f"decorative / {GROUND_FOLIAGE_CAP} ground; "
+      f"decorative / {GROUND_FOLIAGE_CAP} ground / {TREE_CAP} tree; "
       f"2 mega-grass meshes excluded)")
+if fol_missing:
+    print(f"  foliage NOT drawn - no GLB came out of the extractor: "
+          + ", ".join(f"{k}x{v}" for k, v in sorted(fol_missing.items(), key=lambda kv: -kv[1]))
+          + " (nothing is substituted for them)")
 
 # -------------------------------------------------- 2. landscape heightfield
 # Emitted as ordinary props (see module docstring): the tile's own cooked
@@ -665,11 +772,17 @@ nland = ntris = nland_tex = 0
 LANDSCAPE_R = float(os.environ.get("LANDSCAPE_R", RADIUS))
 land_recs = []
 for idxfile, meshroot in ((f"{SP}/terrain_index.json", f"{SP}/terrain_meshes"),
-                          (f"{SP}/gndfm/terrain_index.json", f"{SP}/gndfm/terrain_meshes")):
+                          (f"{SP}/gndfm/terrain_index.json", f"{SP}/gndfm/terrain_meshes"),
+                          (f"{SP}/colterr/land/terrain_index.json", f"{SP}/colterr/land/terrain_meshes")):
     if os.path.exists(idxfile):
         for r in json.load(open(idxfile)):
             r["_src"] = f"{meshroot}/{os.path.basename(r['glb'])}"
             land_recs.append(r)
+# The general and site sweeps overlap on two identical proxies. Emit each
+# landscape actor once to avoid doubled triangles and z-fighting.
+_seen = set()
+land_recs = [r for r in land_recs
+             if not (r["actor"] in _seen or _seen.add(r["actor"]))]
 if land_recs:
     for r in land_recs:
         lx, ly, lz = r["loc"]
@@ -736,6 +849,137 @@ if land_recs:
               f"{('tex ' + lt['tex'].split('/')[-1][:34]) if lt else 'NO BAKE - flat fallback'}")
 
 
+# ================================================ 2b. THE HORIZON (far field)
+# The land used to stop dead at GROUND_R (600 m) and you could see the edge.
+# This section extends only the DISTANT SILHOUETTE, with the game's own cheap
+# far-field terrain, and touches nothing inside GROUND_R.
+#
+# WHAT IT IS. Palworld cooks HLOD proxies for its landscape: 608
+# LandscapeMeshProxyComponents spread over the HLOD0_252m_10079m /
+# HLOD0_252m_3071m / HLOD0_254m_10159m / HLOD0_510m_10199m / HLOD0_64m_511m
+# runtime grids, each one a baked StaticMesh of a block of the SAME
+# LandscapeStreamingProxy set gndfm/ already uses, with a cooked BaseColor
+# Texture2D and UVs already in 0..1. The whole 17.1 x 13.7 km island is
+# 1,230,770 triangles in this form (~1 triangle per 250 m2) because that is
+# precisely what an HLOD proxy is for.
+#
+# WHY THIS AND NOT MORE LANDSCAPE. LandscapeMeshDto exposes ONE LOD for these
+# proxies and it is 1 quad per metre - 2.3 M triangles for a 600 m disc, before
+# the horizon is reached at all. The HLOD is the game's own decimation of that
+# identical surface, so using it is not a simplification invented here.
+#
+# THAT IT IS THE SAME SURFACE IS MEASURED, not assumed. Each HLOD proxy's
+# material names the source cell and LandscapeStreamingProxy it was baked from,
+# so each one can be compared against that exact proxy's LOD0 heightfield in
+# gndfm/. Over 23 matched tiles / 129k vertices, binned to 10 m:
+#     HLOD0_252m_10079m   14 tiles   18,894 v   dZ median +0.00 m  p10 -0.91  p90 +1.14
+#     HLOD0_254m_10159m    2 tiles    4,443 v   dZ median -0.00 m  p10 -0.97  p90 +0.99
+#     HLOD0_510m_10199m    7 tiles  105,529 v   dZ median +0.00 m  p10 -1.39  p90 +1.61
+# 1-3% of vertices differ by more than 10 m, all of them on cliffs, which is
+# what a coarse mesh must do to a vertical face. Sampled at the four base
+# centres the HLOD surface reads 124.8 / -18.6 / 70.6 / 28.3 m against base
+# actor Z of 124.8 / (Glass Tower ground -18.4) / 77.8 / 35.4.
+#
+# ONE DRAW CALL. Every proxy ships its own bake, so drawn per tile the far field
+# would be ~600 meshes and ~600 textures. palxground --hlodfar packs all 608
+# bakes into one 3300x3300 atlas (each with a 2 px gutter of its own replicated
+# edge pixels, so bilinear sampling at a tile edge cannot pick up its
+# neighbour), and this section welds the clipped tiles into ONE mesh whose UVs
+# point into that atlas.
+#
+# TWO RADII, and neither is GROUND_R/PROP_R/FOLIAGE_R:
+#   HORIZON_R      how far the silhouette runs. 0 disables the layer entirely.
+#   HORIZON_INNER  where it STARTS. Defaults to LANDSCAPE_R, the radius the
+#                  real 1-quad-per-metre heightfield is clipped to, so the two
+#                  never overlap and the far field also fills the band between
+#                  LANDSCAPE_R and GROUND_R that had placed rock but no ground
+#                  under it. A triangle is kept if ANY vertex is beyond
+#                  HORIZON_INNER - dropping straddlers instead would leave a
+#                  ragged ring of holes one HLOD triangle (~12 m) wide.
+#
+# The atlas and the merged mesh go to public/horizon_meshes/, NOT to
+# public/terrain_meshes/, which is shared with every other concurrent render.
+HORIZON_R = float(os.environ.get("HORIZON_R", 800000))
+HORIZON_INNER = float(os.environ.get("HORIZON_INNER", LANDSCAPE_R))
+HORIZON_SRC = os.environ.get("HORIZON_SRC", f"{SP}/hfar")
+OUT_HORIZON = os.environ.get("OUT_HORIZON", f"{APP}/public/horizon_meshes")
+nhor = nhor_tris = 0
+_hidx = f"{HORIZON_SRC}/hlodfar_index.json"
+if HORIZON_R > 0 and os.path.exists(_hidx):
+    hrecs = json.load(open(_hidx))
+    hv, huv, hi = [], [], []
+    kept = 0
+    for r in hrecs:
+        if not r.get("slot"):
+            continue
+        # Cheap AABB reject before opening the file.
+        x0, y0 = r["vmin"][0], r["vmin"][1]
+        x1, y1 = r["vmax"][0], r["vmax"][1]
+        near = math.hypot(max(x0 - bx, 0, bx - x1), max(y0 - by, 0, by - y1))
+        if near >= HORIZON_R:
+            continue
+        far = max(math.hypot(cx - bx, cy - by) for cx in (x0, x1) for cy in (y0, y1))
+        if far <= HORIZON_INNER:
+            continue
+        src = f"{HORIZON_SRC}/hlodfar/{r['key']}.bin"
+        if not os.path.exists(src):
+            continue
+        blob = open(src, "rb").read()
+        if blob[:4] != b"HFAR":
+            continue
+        nv, ni = struct.unpack("<ii", blob[4:12])
+        o = 12
+        pos = struct.unpack(f"<{nv * 3}f", blob[o:o + nv * 12]); o += nv * 12
+        uvs = struct.unpack(f"<{nv * 2}f", blob[o:o + nv * 8]); o += nv * 8
+        idx = struct.unpack(f"<{ni}I", blob[o:o + ni * 4])
+        d = [math.hypot(pos[i * 3] - bx, pos[i * 3 + 1] - by) for i in range(nv)]
+        u0, v0, u1, v1 = r["slot"]
+        remap = {}
+        got = 0
+        for t in range(0, ni, 3):
+            a, b2, c2 = idx[t], idx[t + 1], idx[t + 2]
+            # Outer cut: whole triangle inside HORIZON_R. Inner cut: any vertex
+            # beyond HORIZON_INNER (see the note above on straddlers).
+            if d[a] >= HORIZON_R or d[b2] >= HORIZON_R or d[c2] >= HORIZON_R:
+                continue
+            if d[a] <= HORIZON_INNER and d[b2] <= HORIZON_INNER and d[c2] <= HORIZON_INNER:
+                continue
+            for k in (a, b2, c2):
+                if k not in remap:
+                    remap[k] = len(hv)
+                    hv.append((pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]))
+                    huv.append((u0 + uvs[k * 2] * (u1 - u0), v0 + uvs[k * 2 + 1] * (v1 - v0)))
+                hi.append(remap[k])
+            got += 1
+        if got:
+            kept += 1
+    if hi:
+        nm = f"horizon_{b}"
+        os.makedirs(OUT_HORIZON, exist_ok=True)
+        atlas_src = f"{HORIZON_SRC}/hlodfar/hlodfar_atlas.jpg"
+        atlas_dst = f"{OUT_HORIZON}/hlodfar_atlas.jpg"
+        if os.path.exists(atlas_src) and not os.path.exists(atlas_dst):
+            open(atlas_dst, "wb").write(open(atlas_src, "rb").read())
+        if not (KEEP_MESHES and os.path.exists(f"{OUT_HORIZON}/{nm}.glb")):
+            write_glb_tex(f"{OUT_HORIZON}/{nm}.glb", hv, huv, hi, nm, "hlodfar_atlas.jpg")
+        reach = max(math.hypot(v[0] - bx, v[1] - by) for v in hv)
+        # The HLOD proxies' own RelativeLocation/Scale3D are identity and their
+        # vertices are already in world centimetres, so this prop carries no
+        # transform at all.
+        out.append({"mesh": nm, "url": f"/horizon_meshes/{nm}.glb",
+                    "x": 0.0, "y": 0.0, "z": 0.0,
+                    "qx": 0.0, "qy": 0.0, "qz": 0.0, "qw": 1.0,
+                    "sx": 1.0, "sy": 1.0, "sz": 1.0,
+                    "horizon": True, "reach": round(reach, 1)})
+        nhor, nhor_tris = kept, len(hi) // 3
+        print(f"  horizon: {kept} HLOD landscape proxies in {HORIZON_INNER/100:.0f}"
+              f"-{HORIZON_R/100:.0f} m -> {nm}.glb ({len(hv)} v, {nhor_tris} t, "
+              f"{os.path.getsize(f'{OUT_HORIZON}/{nm}.glb')//1024} KB), reach "
+              f"{reach/100:.0f} m, one atlas")
+elif HORIZON_R > 0:
+    print(f"  horizon: SKIPPED - no {_hidx} (run palxground --hlodfar HLOD0_)")
+
+
 # ============================================================ 3. WATER
 # Palworld's water is real authored geometry, but none of it survives a
 # StaticMeshComponent-name filter, which is why it kept coming back "absent":
@@ -784,15 +1028,19 @@ if os.path.exists(widx_path):
     # radius, not just those centred inside it - otherwise the sea stops short
     # of the land and leaves a ring of nothing.
     #
-    # OCEAN_R is tied to GROUND_R on purpose: THE SEA MUST NOT OUT-REACH THE
-    # LAND. Palworld's ocean really is a 41x41 grid of these tiles spanning
-    # 22 km, and running it out to the visual horizon was tried - it removes the
-    # patch's hard far edge, but because our land stops at GROUND_R the extra
-    # sea appears ABOVE the terrain silhouette in every elevated timelapse
-    # shot, and a flat unlit [0,1,0.6] surface there is exactly the "large flat
-    # teal plane dominating the scene". Keeping the sea inside the land's reach
-    # puts sky there instead. Raise OCEAN_R (and GROUND_R with it) if the land
-    # ever runs further.
+    # OCEAN_R IS TIED TO THE LAND'S REACH, and that is the whole rule: THE SEA
+    # MUST NOT OUT-REACH THE LAND. Palworld's ocean really is a 41x41 grid of
+    # these tiles spanning 22 km, and running it out to the visual horizon was
+    # tried once while the land still stopped at GROUND_R (600 m) - it removes
+    # the patch's hard far edge, but the extra sea then appeared ABOVE the
+    # terrain silhouette in every elevated shot, and a flat unlit [0,1,0.6]
+    # surface there is exactly the "large flat teal plane dominating the scene".
+    #
+    # The land now runs to HORIZON_R (section 2b), so the sea follows it rather
+    # than staying at 600 m: stopping the sea short of the land is the same
+    # defect mirrored - the coastline would end in a ring of sky. max() is what
+    # keeps the invariant in both directions, including with the horizon layer
+    # switched off (HORIZON_R=0), where this is exactly the old GROUND_R.
     #
     # The tiles are merged into ONE mesh regardless, the same way the river
     # segments already are: it is 9-12 draw calls saved and the geometry is
@@ -800,9 +1048,18 @@ if os.path.exists(widx_path):
     # so the merge is a pure translate+scale of the tile's own vertices.
     oc = widx["ocean"]
     half = 0.5 * abs(oc["gridX"][2])
-    OCEAN_R = float(os.environ.get("OCEAN_R", GROUND_R))
-    tiles = [t for t in oc["instances"]
-             if abs(t[0] - bx) <= OCEAN_R + half and abs(t[1] - by) <= OCEAN_R + half]
+    # The surveyed Colosseum sits on a northern snowfield 2.1 km from the
+    # nearest authored water and about 69 m above the global sea plane. Drawing
+    # that plane through a terrain notch is an extraction-boundary artefact, so
+    # this proposed site alone defaults to no ocean. An explicit OCEAN_R still
+    # overrides the policy for diagnostics.
+    ocean_default = 0.0 if b == "c0105eum" else max(GROUND_R, HORIZON_R)
+    OCEAN_R = float(os.environ.get("OCEAN_R", ocean_default))
+    tiles = [] if OCEAN_R <= 0 else [
+        t for t in oc["instances"]
+        if abs(t[0] - bx) <= OCEAN_R + half and abs(t[1] - by) <= OCEAN_R + half]
+    if not tiles and OCEAN_R <= 0:
+        print("  ocean: OCEAN_R=0 - no sea emitted for this site")
     if tiles:
         src, sidx = read_glb_prim(f"{OUT_MESH}/{oc['mesh']}.glb")
         ov, oi = [], []
@@ -811,11 +1068,19 @@ if os.path.exists(widx_path):
             for vx, vy, vz in src:
                 ov.append((vx * sx + ix, vy * sy + iy, vz * sz + iz))
             oi.extend(base_i + i for i in sidx)
-        nm = f"ocean_{b}"
-        os.makedirs(OUT_MESH, exist_ok=True)
-        if not (KEEP_MESHES and os.path.exists(f"{OUT_MESH}/{nm}.glb")):
-            write_glb(f"{OUT_MESH}/{nm}.glb", ov, oi, nm)
-        p = {"mesh": nm, "url": f"/terrain_meshes/{nm}.glb",
+        # A wider sea is a DIFFERENT mesh, so it gets a different name and a
+        # different directory. ocean_<base>.glb in the shared terrain_meshes/ is
+        # the 600 m one every other concurrent render is streaming; silently
+        # rewriting it under the old name with 878 more tiles would change their
+        # output too. At the historical radius the name and path are unchanged.
+        if OCEAN_R == GROUND_R:
+            nm, odir, ourl = f"ocean_{b}", OUT_MESH, "/terrain_meshes"
+        else:
+            nm, odir, ourl = f"ocean_{b}_r{int(OCEAN_R/100)}", OUT_HORIZON, "/horizon_meshes"
+        os.makedirs(odir, exist_ok=True)
+        if not (KEEP_MESHES and os.path.exists(f"{odir}/{nm}.glb")):
+            write_glb(f"{odir}/{nm}.glb", ov, oi, nm)
+        p = {"mesh": nm, "url": f"{ourl}/{nm}.glb",
              "x": 0.0, "y": 0.0, "z": 0.0, "qx": 0.0, "qy": 0.0, "qz": 0.0, "qw": 1.0,
              "sx": 1.0, "sy": 1.0, "sz": 1.0}
         p.update(water_style(oc["material"]))
@@ -858,7 +1123,7 @@ if os.path.exists(widx_path):
            if min(math.hypot(r["startPos"][0] - bx, r["startPos"][1] - by),
                   math.hypot(r["endPos"][0] - bx, r["endPos"][1] - by)) < PROP_R]
     if seg:
-        src, sidx = read_glb_prim(f"{SP}/mappal/public/terrain_meshes/water_SM_River_Plane.glb")
+        src, sidx = read_glb_prim(f"{APP}/public/terrain_meshes/water_SM_River_Plane.glb")
         mnx = min(v[0] for v in src)
         mxx = max(v[0] for v in src)
         rv, ri = [], []
@@ -946,9 +1211,12 @@ print(f"  footprint: {len(_fp)} placed pieces ({_unsized} with no registry box, 
                           sorted(cull_kinds.items(), key=lambda kv: -kv[1])[:5]) + ")")
 
 SUFFIX = os.environ.get("TERRAIN_SUFFIX", "")
-json.dump({"base": b, "cellSize": 25600, "props": out},
-          open(f"{SP}/mappal/public/union/terrain_{b}{SUFFIX}.json", "w"))
+_doc = {"base": b, "cellSize": 25600}
+if os.environ.get("TERRAIN_NOTE"):
+    _doc["note"] = os.environ["TERRAIN_NOTE"]
+_doc["props"] = out
+json.dump(_doc, open(f"{OUT_UNION}/terrain_{b}{SUFFIX}.json", "w"))
 print(f"  -> terrain_{b}{SUFFIX}.json  {nprops} props + {nland} landscape tiles "
       f"({nland_tex} textured, {nland - nland_tex} without a bake; {ntris} landscape tris), "
       f"{skipped} props skipped for missing GLB "
-      f"({os.path.getsize(f'{SP}/mappal/public/union/terrain_{b}{SUFFIX}.json')//1024} KB)")
+      f"({os.path.getsize(f'{OUT_UNION}/terrain_{b}{SUFFIX}.json')//1024} KB)")
