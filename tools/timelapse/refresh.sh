@@ -45,10 +45,34 @@ for base in 5fed0024 c0105eum 16fca097 de44d9f4 07f13218; do
   KEEP_MESHES=1 python3 "$REPO/tools/timelapse/scripts/build_terrain.py" "$base"
 done
 
-# 3. render every base, one placed piece per frame, then encode
-( cd "$WORK" && bash "$REPO/tools/timelapse/final_render_all.sh" )
+# 3. Start a fresh dev server only after all public assets exist. Vite snapshots
+#    its public file tree at startup, so reusing an older server can silently
+#    turn missing textures into the SPA HTML fallback.
+PORT="${PORT:-4174}"
+export PORT
+VITE_LOG="$WORK/vite-timelapse.log"
+"$MAPPAL_ROOT/node_modules/.bin/vite" --host 127.0.0.1 --port "$PORT" --strictPort \
+  >"$VITE_LOG" 2>&1 &
+VITE_PID=$!
+cleanup_vite() { kill "$VITE_PID" 2>/dev/null || true; }
+trap cleanup_vite EXIT
+for _ in {1..120}; do
+  curl -fsS "http://127.0.0.1:$PORT/" >/dev/null 2>&1 && break
+  kill -0 "$VITE_PID" 2>/dev/null || { cat "$VITE_LOG" >&2; exit 1; }
+  sleep 0.5
+done
+curl -fsS "http://127.0.0.1:$PORT/" >/dev/null || {
+  echo "MapPal dev server did not become ready" >&2
+  cat "$VITE_LOG" >&2
+  exit 1
+}
 
-# 4. publish into docs/ for GitHub Pages (mp4 must NOT be git-lfs tracked:
+# 4. render every base, one placed piece per frame, then encode
+( cd "$WORK" && bash "$REPO/tools/timelapse/final_render_all.sh" )
+cleanup_vite
+trap - EXIT
+
+# 5. publish into docs/ for GitHub Pages (mp4 must NOT be git-lfs tracked:
 #    Pages serves LFS pointer files verbatim and playback breaks)
 python3 "$REPO/scripts/update_timelapse.py" "$WORK/video" "$WORK/build_index.json" \
   "$MAPPAL_ROOT/public/union/manifest.json"
