@@ -4,15 +4,28 @@
 #
 #   tools/timelapse/refresh.sh [--force]
 #
-# It is deliberately NOT wired into snapshot_from_mac.py: a full render is
-# ~3,800 frames and ~2.5 h, while snapshots run hourly. The staleness guard
-# below is what makes it safe to schedule.
+# snapshot_from_mac.py fires this after every snapshot it commits, detached, so
+# an hourly snapshot never waits on a render. A full render is ~7,000 frames and
+# hours of wall clock, so two guards keep that safe: the staleness check below
+# (MIN_NEW_SNAPSHOTS world commits since the last render) and a lock, so a
+# render still running when the next snapshot lands is left alone.
 set -euo pipefail
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$HERE/.." && cd .. && pwd)"
+source "$HERE/sites.sh"
 WORK="${PALTL_WORK:?set PALTL_WORK to a scratch dir holding the extracted assets}"
 MAPPAL_ROOT="${MAPPAL_ROOT:-$WORK/mappal}"
 MIN_NEW_SNAPSHOTS="${MIN_NEW_SNAPSHOTS:-24}"
 STAMP="$WORK/.last_timelapse_commit"
+LOCK="$WORK/.timelapse_refresh.lock"
+
+# One render at a time. mkdir is atomic on every filesystem this runs on;
+# a stale lock from a killed run is reported rather than silently ignored.
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "[timelapse] a refresh is already running (lock: $LOCK) - skipping"
+  exit 0
+fi
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
 export PALTL_WORK="$WORK"
 export PALTL_REPO="$REPO"
 export MAPPAL_ROOT
@@ -40,8 +53,10 @@ python3 "$REPO/tools/timelapse/scripts/build_endoflife.py"
 python3 "$REPO/tools/timelapse/scripts/build_wildpals_draw.py"
 python3 "$MAPPAL_ROOT/tools/timelapse/build_colosseum.py"
 
-# 2. rebuild near terrain plus the 8 km far-field HLOD ring for every output
-for base in 5fed0024 c0105eum 16fca097 de44d9f4 07f13218; do
+# 2. rebuild near terrain plus the 8 km far-field HLOD ring for every output.
+#    The site list only exists once step 1 has written the render manifest.
+paltl_sites
+for base in $PALTL_SITES; do
   KEEP_MESHES=1 python3 "$REPO/tools/timelapse/scripts/build_terrain.py" "$base"
 done
 

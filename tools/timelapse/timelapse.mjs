@@ -102,7 +102,10 @@ page.on('pageerror',e=>console.log('PAGEERR',e.message));
 // renders as the flat #cbd5e1 fallback colour — i.e. an unidentifiable grey
 // blob. If Pals come out grey, restart the dev server before suspecting the
 // material code.
-await page.goto(`http://127.0.0.1:${process.env.PORT||5174}/`,{waitUntil:'networkidle2'});
+await page.goto(`http://127.0.0.1:${process.env.PORT||5174}/`,{
+  waitUntil:'networkidle2',
+  timeout:120000,
+});
 const inp=await page.waitForSelector('input[type=file]',{timeout:20000});
 await inp.uploadFile(`${UNION_DIR}/union_${BASE}.json`);
 await page.waitForFunction(()=>!!window.__mappalCam&&!!window.__mappalCam.setObjects,{timeout:40000});
@@ -580,6 +583,12 @@ const setup=await page.evaluate(async(b,reg,actors,stance,wildPvp)=>{
   // demolisher, and no time of demolition.
   const dm=actors?await grab(`/union/demolitions_${b}.json`):null;
   window.__demolitions=(dm&&dm.demolitions)||[];
+  // Removal attribution lookup used by __changeUid below.  This was formerly
+  // read as __demoPairs without ever constructing the Map, which crashed every
+  // actor-enabled render as soon as it audited a removal.
+  window.__demoPairs=new Map(window.__demolitions
+    .filter(d=>d.removedId&&d.attributedUid)
+    .map(d=>[d.removedId,d.attributedUid]));
   // Parse every avatar mesh before frame 0. An un-cached useGLTF suspends, and
   // a suspension blanks the whole canvas for that frame — three build-out
   // frames came out as flat background PNGs before this was added.
@@ -1870,6 +1879,40 @@ if(ACTORS) {
   console.log(`  warm-up: ${ready}`);
 }
 
+// ---- WILD PAL SHEET (diagnostic) ------------------------------------------
+// PAL_SHEET=<CharacterID> renders one close-up of a Pal selected from this
+// base's real day spawn draw. The Pal keeps the exact authored spawner
+// coordinate carried by wildpals_draw_<base>.json; clearing the rest of the
+// scene only makes its extracted mesh and texture large enough to inspect.
+if(process.env.PAL_SHEET){
+  const wanted=process.env.PAL_SHEET;
+  const info=await page.evaluate(async wanted=>{
+    const all=window.__wildAt(8);
+    const pal=all.find(p=>p.char===wanted)||all[0];
+    if(!pal) return null;
+    window.__mappalCam.setObjects([]);
+    window.__mappalCam.setTerrain([]);
+    window.__mappalCam.setPlayers([]);
+    window.__mappalCam.setBuilder(null);
+    window.__mappalCam.setPals([pal]);
+    window.__mappalCam.setDaylight(11);
+    const p=window.__toScene(pal.x,pal.y,pal.z);
+    window.__mappalCam.setView([p[0]+2.6,p[1]+1.25,p[2]+2.6],[p[0],p[1]+0.65,p[2]]);
+    return {char:pal.char,id:pal.id,url:pal.url,p};
+  },wanted);
+  if(!info){
+    console.log(`PAL_SHEET ${wanted}: no day-eligible wild Pal in this base`);
+  }else{
+    await new Promise(r=>setTimeout(r,1800));
+    const f=`${OUT}/pal_${info.char}.png`;
+    await page.screenshot({path:f});
+    console.log(`PAL_SHEET ${info.char} ${info.id} at authored scene coordinate `+
+      `${info.p.map(v=>+v.toFixed(2)).join(',')} -> ${f}`);
+  }
+  await browser.close();
+  process.exit(info?0:1);
+}
+
 
 // ---- AVATAR SHEET (diagnostic) ---------------------------------------------
 // AVATAR_SHEET=<uid>@<ts>,<uid>@<ts>,... renders ONE close-up per (player,
@@ -1998,7 +2041,7 @@ for(let i=0;i<N;i++){
   // frame 0 (that is exactly how this was caught: an A/B sheet whose first
   // sampled column came out black in both rows).
   await new Promise(r=>setTimeout(r,done===0?800:55));
-  await page.screenshot({path:f});
+  await page.screenshot({path:f,optimizeForSpeed:true});
   // CLOSEUP=<metres> writes a SECOND screenshot per frame, taken from that
   // distance off the builder avatar, then restores the framing on the next
   // frame. Diagnostic only and off by default, but keep it: "is the avatar
@@ -2068,9 +2111,11 @@ for(let i=0;i<N;i++){
 // Nothing here claims to know who, why, or exactly when.
 const EOL=(()=>{ try{ return JSON.parse(fs.readFileSync(`${UNION_DIR}/endoflife_${BASE}.json`)); }
                  catch(e){ return null; } })();
-if(EOL&&!EOL.endOfLife)
-  console.log(`  end of life: ${EOL.name} is still standing in the final snapshot we hold`+
-    ` (${EOL.finalSnapshot.at}) — no ending to show. ${EOL.timeline[0].what}`);
+if(EOL&&!EOL.endOfLife){
+  const summary=EOL.timeline?.[0]?.what||EOL.note||'No end-of-life event is recorded.';
+  const finalAt=EOL.finalSnapshot?.at||'no final snapshot';
+  console.log(`  end of life: ${EOL.name} has no ending to show (${finalAt}). ${summary}`);
+}
 if(EOL&&EOL.endOfLife&&!process.env.NOENDING){
   const E=EOL.endOfLife;
   const HOLD=parseInt(process.env.ENDING_HOLD||'60');     // frames on the camp as it stood
@@ -2087,8 +2132,15 @@ if(EOL&&EOL.endOfLife&&!process.env.NOENDING){
     el.innerHTML='<div style="font:600 22px/1.35 inherit;letter-spacing:.08em;text-transform:uppercase">'+t+
       '</div>'+ls.map(x=>'<div style="margin-top:8px;opacity:.88">'+x+'</div>').join('');
   },title,lines);
-  const shot=async(k)=>{ await new Promise(r=>setTimeout(r,140));
-    await page.screenshot({path:`${OUT}/f_${String(N+k).padStart(4,'0')}.png`}); };
+  const shot=async(k)=>{
+    const path=`${OUT}/f_${String(N+k).padStart(4,'0')}.png`;
+    // The render signature above deletes stale frames whenever the plan or
+    // ending settings change.  If the signature still matches, a completed
+    // coda frame is safe to resume just like an ordinary replay frame.
+    if(fs.existsSync(path)) return;
+    await new Promise(r=>setTimeout(r,140));
+    await page.screenshot({path,optimizeForSpeed:true});
+  };
   // The world clock at each of the two real snapshots, so the light is that
   // snapshot's own in-game hour rather than wherever the replay left the sun.
   const eolHour=(ts)=>{ const g=GSEC_RAW(ts); return g===null?null:((g%DAY)/3600); };

@@ -16,6 +16,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -27,12 +28,14 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SERVER_DIR = Path("/Users/mannybhidya/PalworldServer")
-ENV_FILE = SERVER_DIR / ".env"
+# Everything host- or world-specific is an env override with this server's value
+# as the default, so a second world only needs PALWORLD_* set rather than a fork.
+SERVER_DIR = Path(os.environ.get("PALWORLD_SERVER_DIR", "/Users/mannybhidya/PalworldServer"))
+ENV_FILE = Path(os.environ.get("PALWORLD_ENV_FILE", SERVER_DIR / ".env"))
 SAVE_ROOT = SERVER_DIR / "palworld" / "Pal" / "Saved" / "SaveGames" / "0"
 LIVE_CONFIG_DIR = SERVER_DIR / "palworld" / "Pal" / "Saved" / "Config" / "LinuxServer"
-WORLD_ID = "64EE4B2C4C81F4912BF109850820D9BA"
-API_BASE = "http://127.0.0.1:8212/v1/api"
+WORLD_ID = os.environ.get("PALWORLD_WORLD_ID", "64EE4B2C4C81F4912BF109850820D9BA")
+API_BASE = os.environ.get("PALWORLD_API_BASE", "http://127.0.0.1:8212/v1/api")
 PLACEHOLDER = "<REDACTED:supplied-locally>"
 REDACTED = f'"{PLACEHOLDER}"'
 SECRET_KEYS = ("AdminPassword", "ServerPassword", "RCONPassword", "BanListURL")
@@ -204,6 +207,37 @@ def reason_for(players_now: int, players_prev: int | None) -> str:
     return "periodic idle (server up, 0 players)"
 
 
+def trigger_timelapse_refresh() -> None:
+    """Kick the timelapse pipeline after a snapshot lands.
+
+    Detached on purpose: snapshots run hourly and a full render takes hours, so
+    this must never hold up the snapshot. refresh.sh decides for itself whether
+    there is enough new history to be worth rendering, and takes a lock so a run
+    still going when the next snapshot lands is left alone.
+
+    Skipped, not failed, when PALTL_WORK is unset - a host that only takes
+    snapshots has no render workspace, and that is a valid deployment.
+    """
+    work = os.environ.get("PALTL_WORK")
+    if not work:
+        print("[timelapse] PALTL_WORK unset; skipping render refresh")
+        return
+    script = REPO / "tools" / "timelapse" / "refresh.sh"
+    if not script.exists():
+        print(f"[timelapse] {script} missing; skipping render refresh")
+        return
+    log = Path(work) / "refresh.log"
+    try:
+        with log.open("a") as fh:
+            subprocess.Popen(["bash", str(script)], cwd=str(REPO),
+                             stdout=fh, stderr=subprocess.STDOUT,
+                             stdin=subprocess.DEVNULL, start_new_session=True)
+        print(f"[timelapse] refresh started in background -> {log}")
+    except OSError as e:
+        # A snapshot that committed is still a success; the render is best effort.
+        print(f"[timelapse] could not start refresh: {e}", file=sys.stderr)
+
+
 def main() -> int:
     env = load_env()
     admin_password = env.get("ADMIN_PASSWORD", "")
@@ -372,6 +406,7 @@ def main() -> int:
     subprocess.run(["git", "-C", str(REPO), "push", "origin", "main"], check=True)
     subprocess.run(["git", "-C", str(REPO), "push", "origin", tag], check=True)
     print(f"Snapshot committed and pushed: {tag} ({reason})")
+    trigger_timelapse_refresh()
     return 0
 
 

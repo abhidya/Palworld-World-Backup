@@ -51,10 +51,27 @@ tools/timelapse/refresh.sh             # guarded: skips unless enough new histor
 tools/timelapse/refresh.sh --force     # ignore the guard
 ```
 
-`refresh.sh` rebuilds the history indexes, renders every base, encodes, and
-publishes to `docs/timelapse/`. It is safe to schedule. It is deliberately *not*
-called from `snapshot_from_mac.py`: a full render is ~2.5 h against hourly
-snapshots, so `MIN_NEW_SNAPSHOTS` (default 24) is what makes scheduling sane.
+`refresh.sh` rebuilds the history indexes, renders every site, encodes, and
+publishes to `docs/timelapse/`.
+
+`snapshot_from_mac.py` fires it, detached, after every snapshot it commits - so
+the videos follow the saves without anyone remembering to run this. A full
+render is hours against hourly snapshots, so two guards make that safe:
+`MIN_NEW_SNAPSHOTS` (default 24 world commits since the last render) and a lock
+directory, so a render still going when the next snapshot lands is left alone. A
+host with no `PALTL_WORK` skips the render and just takes snapshots.
+
+### Which sites get rendered
+
+Nothing hardcodes a base id. `scripts/timelapse_sites.py` reads the render
+manifest that `build_union.py` derives from the saves, and every stage - render,
+encode, publish - asks it. Smallest site first, so a broken run surfaces cheap.
+
+```bash
+python3 scripts/timelapse_sites.py            # what this world has
+PALTL_SKIP=c0105eum  tools/timelapse/refresh.sh   # drop a site
+PALTL_BASES="5fed0024 16fca097" ...               # only these, in this order
+```
 
 Useful env: `PPF` (pieces per frame; 1 = every placement gets a frame),
 `BUILDOUT_HOUR`, `DAYNIGHT`, `ACTORS`, `STANCE`, `WILDPVP`, `GROUND_R`,

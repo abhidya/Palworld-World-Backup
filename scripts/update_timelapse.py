@@ -13,9 +13,6 @@ import json, os, shutil, sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS_TL = os.path.join(REPO, "docs", "timelapse")
-NAMES = {'07f13218': 'Glass Tower', '16fca097': 'Wooden Camp',
-         'de44d9f4': 'Stone Works', '5fed0024': 'Lost Camp',
-         'c0105eum': 'Colosseum Maximus'}
 LOOT = 'CommonDropItem3D'
 
 
@@ -43,7 +40,10 @@ def main():
         bid = fn[:-4]
         shutil.copy2(os.path.join(vid_dir, fn), os.path.join(DOCS_TL, fn))
         render_entry = render_manifest.get(bid, {})
-        entry = {"name": render_entry.get("name", NAMES.get(bid, bid))}
+        # Names come from the render manifest, which build_union.py derives from
+        # the saves. A video with no manifest entry is published under its id
+        # rather than a name invented here.
+        entry = {"name": render_entry.get("name", bid)}
         rs = per.get(bid)
         if rs:
             t0 = min(r['first'] for r in rs)
