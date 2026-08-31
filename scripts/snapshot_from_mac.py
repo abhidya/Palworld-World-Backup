@@ -27,6 +27,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from server_guard import ensure_server_running  # noqa: E402
+
 REPO = Path(__file__).resolve().parent.parent
 # Everything host- or world-specific is an env override with this server's value
 # as the default, so a second world only needs PALWORLD_* set rather than a fork.
@@ -36,20 +39,6 @@ SAVE_ROOT = SERVER_DIR / "palworld" / "Pal" / "Saved" / "SaveGames" / "0"
 LIVE_CONFIG_DIR = SERVER_DIR / "palworld" / "Pal" / "Saved" / "Config" / "LinuxServer"
 WORLD_ID = os.environ.get("PALWORLD_WORLD_ID", "64EE4B2C4C81F4912BF109850820D9BA")
 API_BASE = os.environ.get("PALWORLD_API_BASE", "http://127.0.0.1:8212/v1/api")
-GAME_ROOT = SERVER_DIR / "palworld"
-CONTAINER = os.environ.get("PALWORLD_CONTAINER", "palworld-server")
-SERVER_BINARY = "PalServer-Linux-Shipping"
-# SteamCMD rewrites these on every game update. The install is bind-mounted from
-# macOS, and files written there can land without the execute bit - which makes
-# start.sh fail with "bad interpreter: Permission denied" and fall through to
-# "Ending Server" while the container stays Up, forwarding 8211/udp to nothing.
-EXEC_PATHS = (
-    "PalServer.sh",
-    f"Pal/Binaries/Linux/{SERVER_BINARY}",
-    "Engine/Binaries/Linux/libEOSSDK-Linux-Shipping.so",
-)
-RESTART_STAMP = SERVER_DIR / ".last_autorestart"
-RESTART_COOLDOWN_S = int(os.environ.get("PALWORLD_RESTART_COOLDOWN", "600"))
 PLACEHOLDER = "<REDACTED:supplied-locally>"
 REDACTED = f'"{PLACEHOLDER}"'
 SECRET_KEYS = ("AdminPassword", "ServerPassword", "RCONPassword", "BanListURL")
@@ -256,76 +245,6 @@ def trigger_timelapse_refresh() -> None:
     except OSError as e:
         # A snapshot that committed is still a success; the render is best effort.
         print(f"[timelapse] could not start refresh: {e}", file=sys.stderr)
-
-
-def _docker(*args: str, timeout: int = 60) -> subprocess.CompletedProcess:
-    return subprocess.run(["docker", *args], capture_output=True, text=True, timeout=timeout)
-
-
-def restore_exec_bits() -> list[str]:
-    """Put back the execute bit a game update can strip. Returns what it fixed."""
-    repaired = []
-    for rel in EXEC_PATHS:
-        path = GAME_ROOT / rel
-        if not path.exists():
-            continue
-        mode = path.stat().st_mode
-        if mode & 0o111 != 0o111:
-            path.chmod(mode | 0o111)
-            repaired.append(rel)
-    return repaired
-
-
-def server_process_running() -> bool | None:
-    """Is the game binary alive inside the container? None if we cannot tell."""
-    try:
-        out = _docker("exec", CONTAINER, "pgrep", "-f", SERVER_BINARY, timeout=20)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return bool(out.stdout.strip())
-
-
-def ensure_server_running() -> None:
-    """Repair the one failure mode that leaves the container Up and the game dead.
-
-    Runs before every snapshot, so an update that strips the execute bit costs
-    minutes rather than the 34 hours it cost on 2026-08-30.
-
-    Deliberately conservative: it only ever restarts when the game binary is
-    absent, so it can never kick a connected player, and a cooldown keeps a
-    genuinely crash-looping server from being restarted every 60 seconds.
-    """
-    try:
-        state = _docker("inspect", "-f", "{{.State.Running}}", CONTAINER, timeout=20)
-    except (OSError, subprocess.SubprocessError) as e:
-        print(f"[guard] cannot reach docker ({e}); skipping health guard", file=sys.stderr)
-        return
-    if state.returncode != 0 or state.stdout.strip() != "true":
-        # Container stopped or absent. Compose's restart policy owns that case;
-        # a stopped container may also be a deliberate maintenance window.
-        return
-
-    repaired = restore_exec_bits()
-    if repaired:
-        print(f"[guard] restored execute bit on: {', '.join(repaired)}")
-
-    running = server_process_running()
-    if running is not False:
-        return  # alive, or undeterminable - either way do not touch it
-
-    now = time.time()
-    if RESTART_STAMP.exists() and now - RESTART_STAMP.stat().st_mtime < RESTART_COOLDOWN_S:
-        print(f"[guard] {SERVER_BINARY} still down, restarted recently; waiting", file=sys.stderr)
-        return
-
-    print(f"[guard] {SERVER_BINARY} is not running; restarting {CONTAINER}", file=sys.stderr)
-    RESTART_STAMP.touch()
-    try:
-        rc = _docker("restart", CONTAINER, timeout=120)
-        print(f"[guard] restart {'ok' if rc.returncode == 0 else 'FAILED: ' + rc.stderr.strip()}",
-              file=sys.stderr)
-    except (OSError, subprocess.SubprocessError) as e:
-        print(f"[guard] restart failed: {e}", file=sys.stderr)
 
 
 def main() -> int:
