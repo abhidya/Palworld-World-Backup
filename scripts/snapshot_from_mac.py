@@ -29,6 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from server_guard import ensure_server_running  # noqa: E402
+from save_guard import check as check_save_integrity  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 # Everything host- or world-specific is an env override with this server's value
@@ -249,6 +250,13 @@ def trigger_timelapse_refresh() -> None:
 
 def main() -> int:
     ensure_server_running()
+    # Content-loss detection. Cheap here: it decodes only when the save changed
+    # and at most every CHECK_INTERVAL_S, because a full decode costs ~4s and
+    # this runs every 60.
+    try:
+        check_save_integrity()
+    except Exception as e:  # never let a monitoring check block a backup
+        print(f"[save-guard] check failed: {e}", file=sys.stderr)
     env = load_env()
     admin_password = env.get("ADMIN_PASSWORD", "")
     server_password = env.get("SERVER_PASSWORD", "")
