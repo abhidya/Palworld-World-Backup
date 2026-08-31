@@ -5,7 +5,8 @@ Default world dir: <repo-root>/world/current (repo root = two levels up from
 this script, i.e. tools/dashboard/../..)
 Writes: data.js  (window.PALDATA = {...})
 """
-import json, os, re, sys, glob
+import json
+import sys, os, re, sys, glob
 
 import ooz
 from palworld_save_tools.gvas import GvasFile
@@ -147,7 +148,24 @@ wsd = level.properties["worldSaveData"]["value"]
 players = {}
 pals = []
 npcs = []
-char_entries = wsd["CharacterSaveParameterMap"]["value"]
+def _section(key, nested=False):
+    """Read a worldSaveData section, tolerating one that is missing.
+
+    A save that has LOST a section still has to be reportable - that is exactly
+    the state worth seeing on the dashboard. Indexing straight into wsd made
+    this file crash with KeyError instead, which silently stopped the dashboard
+    regenerating for the two days the world had no BaseCampSaveData.
+    """
+    node = wsd.get(key)
+    if node is None:
+        print(f"[extract] WARNING: {key} absent from save")
+        return []
+    val = node.get("value", node)
+    if nested or (isinstance(val, dict) and "values" in val):
+        val = val.get("values", []) if isinstance(val, dict) else val
+    return val or []
+
+char_entries = _section("CharacterSaveParameterMap")
 for e in char_entries:
     uid = uid_str(e["key"]["PlayerUId"]["value"])
     iid = uid_str(e["key"]["InstanceId"]["value"])
@@ -214,7 +232,7 @@ print(f"  players={len(players)} pals={len(pals)} npcs={len(npcs)}")
 
 # ---- guilds ---------------------------------------------------------------
 guilds = []
-for e in wsd["GroupSaveDataMap"]["value"]:
+for e in _section("GroupSaveDataMap"):
     rd = e["value"]["RawData"]["value"]
     if rd.get("group_type") != "EPalGroupType::Guild":
         continue
@@ -238,7 +256,7 @@ for e in wsd["GroupSaveDataMap"]["value"]:
 # ---- bases ----------------------------------------------------------------
 bases = []
 base_by_id = {}
-for e in wsd["BaseCampSaveData"]["value"]:
+for e in _section("BaseCampSaveData"):
     bid = uid_str(e["key"])
     val = e["value"]
     rd = val["RawData"]["value"]
@@ -262,7 +280,7 @@ for i, b in enumerate(sorted(bases, key=lambda x: x["pos"][0])):
 
 # ---- item containers ------------------------------------------------------
 cont_slots = {}
-for e in wsd["ItemContainerSaveData"]["value"]:
+for e in _section("ItemContainerSaveData"):
     cid = uid_str(e["key"]["ID"]["value"])
     slots = []
     for s in (e["value"]["Slots"]["value"]["values"] or []):
@@ -316,7 +334,7 @@ print(f"  dynamic payloads: eggs={len(dyn_items)} gear={len(dyn_gear)}")
 # ---- map objects: chests, incubators, feed boxes, per-base census --------
 incubators = []
 chest_types = {}
-mo_values = wsd["MapObjectSaveData"]["value"]["values"]
+mo_values = _section("MapObjectSaveData", nested=True)
 for m in mo_values:
     oid = m["MapObjectId"]["value"]
     model = m["Model"]["value"]["RawData"]["value"]
@@ -434,7 +452,7 @@ for p in players.values():
             cont_where[cid] = {"kind": kind, "player": p.get("name", "?")}
 
 # guild chest (bControllableOthers / GroupId set)
-for e in wsd["ItemContainerSaveData"]["value"]:
+for e in _section("ItemContainerSaveData"):
     cid = uid_str(e["key"]["ID"]["value"])
     gi = e["value"].get("BelongInfo", {}).get("value", {})
     gid = uid_str(V(gi.get("GroupId")))
