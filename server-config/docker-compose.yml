@@ -1,0 +1,37 @@
+services:
+  palworld:
+    image: thijsvanloef/palworld-server-docker:latest
+    restart: unless-stopped
+    container_name: palworld-server
+    stop_grace_period: 30s
+    ports:
+      - 8211:8211/udp
+      - 27015:27015/udp
+      - 127.0.0.1:8212:8212/tcp   # REST API - loopback only, never forward this on the router
+    env_file:
+      - .env
+    volumes:
+      # The game install lives in a named volume (ext4 inside the Docker VM) and
+      # NOT on the macOS bind mount. A SteamCMD update writing to virtiofs landed
+      # PalServer.sh and PalServer-Linux-Shipping as mode 644 on 2026-08-29, and
+      # virtiofs then reported them as executable to the container's own
+      # `isExecutable` guard, so start.sh skipped its chmod and the exec failed
+      # with "bad interpreter: Permission denied" - a 34 h outage where the
+      # container still showed Up. ext4 reports modes truthfully and keeps them.
+      - palworld-game:/palworld/
+      # Saves stay bind-mounted: scripts/snapshot_from_mac.py reads them from the
+      # host every 60s, and they are data files, so the exec-bit issue cannot
+      # apply to them.
+      - ./palworld/Pal/Saved:/palworld/Pal/Saved
+      # Backups stay on the host so they survive `docker volume rm` - they are
+      # what made the 2026-08-29 world recovery possible.
+      - ./palworld/backups:/palworld/backups
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  palworld-game:
+    external: true
