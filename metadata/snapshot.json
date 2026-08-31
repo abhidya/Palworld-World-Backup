@@ -1,6 +1,6 @@
 {
-  "snapshot_timestamp": "2026-08-31T14:04:21-0700",
-  "reason": "player logged on (0 -> 1)",
+  "snapshot_timestamp": "2026-08-31T14:09:46-0700",
+  "reason": "player logged off (1 -> 0)",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
   "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
   "source_path": "/Users/mannybhidya/PalworldServer/palworld/Pal/Saved/SaveGames/0/64EE4B2C4C81F4912BF109850820D9BA",
@@ -8,31 +8,31 @@
   "server_version": "v1.0.3.101283",
   "server_name": "Diva Booties",
   "server_running": true,
-  "players_at_snapshot": 1,
-  "snapshot_boundary": "server running (1 players); REST /v1/api/save accepted",
+  "players_at_snapshot": 0,
+  "snapshot_boundary": "server running (0 players); REST /v1/api/save accepted",
   "file_count": 8,
-  "total_bytes": 2218403,
+  "total_bytes": 2233216,
   "critical_file_hashes": {
-    "Level.sav": "2119725232f1bb1dbac94c54e369d51f1601ee28d725062946cf4767edf04587",
-    "LevelMeta.sav": "772c3626ee90e1b275be82f147e7fc6fa2aee9ff37822aaa87b5ec40cc22e2b7",
+    "Level.sav": "6989d2df2f9c25860a2ae8660ef258cc88b84e41c798aad423655e5c8ee3b6ba",
+    "LevelMeta.sav": "39639bd23fa5b2f603a06c70f7012b243feb2b8403eb36dd1fbeb883619d25b0",
     "WorldOption.sav": "3fdaa0db3b2fffae0cab244a27ab30870c7d9880cf9cea03690c485dd96ebc10"
   },
   "player_save_hashes": {
-    "Players\\00000000000000000000000000000001.sav": "87474cde5f0e979b3961b9236314d22f9e3ae665498f321500b1e042f2b402b4",
-    "Players\\54001E88000000000000000000000000.sav": "c488ee5247df802ae7d1e060da859f5358ac4f6b80b30f90353bf92152f20a80",
+    "Players\\00000000000000000000000000000001.sav": "1ddca879537ded68a233a10bff1e5410170a458d45b8af044ed962c4084294c4",
+    "Players\\54001E88000000000000000000000000.sav": "604e65640896eeba96cd32fb94d15e298f42aaf0c3bf085cc7509a14e724e9b8",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "831fea2eeab08091fd6c9a231a3ed6a564bc4a3945da5ec1fcc36b8cc0961edd",
-    "Players\\D87864F3000000000000000000000000.sav": "fb1277f89278a03d8b6450812a022a5197be8c92600c7f196aee0fd36adfc5d2"
+    "Players\\9C8317FC000000000000000000000000.sav": "930d8f3c463f2bfd4813cdbb04f393b2ae769ff59c5aa5892991a7b60fcbe9a0",
+    "Players\\D87864F3000000000000000000000000.sav": "8bd7c1b02d00e753508dad21407aef3f39f273c964613893d4f0e3c81946c4ca"
   },
   "all_file_hashes": {
-    "Level.sav": "2119725232f1bb1dbac94c54e369d51f1601ee28d725062946cf4767edf04587",
-    "LevelMeta.sav": "772c3626ee90e1b275be82f147e7fc6fa2aee9ff37822aaa87b5ec40cc22e2b7",
+    "Level.sav": "6989d2df2f9c25860a2ae8660ef258cc88b84e41c798aad423655e5c8ee3b6ba",
+    "LevelMeta.sav": "39639bd23fa5b2f603a06c70f7012b243feb2b8403eb36dd1fbeb883619d25b0",
     "WorldOption.sav": "3fdaa0db3b2fffae0cab244a27ab30870c7d9880cf9cea03690c485dd96ebc10",
-    "Players\\00000000000000000000000000000001.sav": "87474cde5f0e979b3961b9236314d22f9e3ae665498f321500b1e042f2b402b4",
-    "Players\\54001E88000000000000000000000000.sav": "c488ee5247df802ae7d1e060da859f5358ac4f6b80b30f90353bf92152f20a80",
+    "Players\\00000000000000000000000000000001.sav": "1ddca879537ded68a233a10bff1e5410170a458d45b8af044ed962c4084294c4",
+    "Players\\54001E88000000000000000000000000.sav": "604e65640896eeba96cd32fb94d15e298f42aaf0c3bf085cc7509a14e724e9b8",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "831fea2eeab08091fd6c9a231a3ed6a564bc4a3945da5ec1fcc36b8cc0961edd",
-    "Players\\D87864F3000000000000000000000000.sav": "fb1277f89278a03d8b6450812a022a5197be8c92600c7f196aee0fd36adfc5d2"
+    "Players\\9C8317FC000000000000000000000000.sav": "930d8f3c463f2bfd4813cdbb04f393b2ae769ff59c5aa5892991a7b60fcbe9a0",
+    "Players\\D87864F3000000000000000000000000.sav": "8bd7c1b02d00e753508dad21407aef3f39f273c964613893d4f0e3c81946c4ca"
   },
   "config_redacted_keys": [
     "AdminPassword",
@@ -40,6 +40,6 @@
     "ServerPassword"
   ],
   "git_commit": null,
-  "git_commit_note": "see tag snapshot/20260831-140421 and rig state palworld-backup.json",
-  "snapshot_tag": "snapshot/20260831-140421"
+  "git_commit_note": "see tag snapshot/20260831-140946 and rig state palworld-backup.json",
+  "snapshot_tag": "snapshot/20260831-140946"
 }
