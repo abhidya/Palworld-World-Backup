@@ -291,7 +291,11 @@ def main() -> int:
     ACTIVE_CEILING = 60 * 60       # active play: snapshot hourly (logoff catches session end)
     IDLE_CEILING = 24 * 60 * 60    # idle server: daily heartbeat proves the pipeline works
     age = None
-    if prev and players_prev is not None and players_now == players_prev:
+    # --force skips the staleness throttle. Needed after a restore: the repo
+    # would otherwise keep serving the pre-restore world until the idle ceiling
+    # expires, which is exactly when you most want the good state captured.
+    force = "--force" in sys.argv[1:]
+    if not force and prev and players_prev is not None and players_now == players_prev:
         try:
             from datetime import datetime
             prev_ts = datetime.strptime(prev["snapshot_timestamp"], "%Y-%m-%dT%H:%M:%S%z")
@@ -306,8 +310,8 @@ def main() -> int:
                 print(f"Server idle, last snapshot {age/3600:.1f} h ago; skipping.")
                 return 0
 
-    reason = reason_for(players_now, players_prev)
-    if age is not None and not players_now and age >= IDLE_CEILING:
+    reason = "forced snapshot" if force else reason_for(players_now, players_prev)
+    if not force and age is not None and not players_now and age >= IDLE_CEILING:
         reason = f"idle ceiling: server up but unplayed for {age/3600:.1f} h"
 
     try:
