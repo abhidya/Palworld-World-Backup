@@ -1,37 +1,48 @@
 {
  "07f13218": {
   "name": "Glass Tower",
-  "structures": 2189,
-  "steps": 98,
+  "structures": 2172,
+  "steps": 96,
   "t0": 1786878185,
-  "t1": 1787959324,
-  "built": 821,
-  "removed": 325
+  "t1": 1788224891,
+  "built": 804,
+  "removed": 308
  },
  "16fca097": {
   "name": "Wooden Camp",
-  "structures": 976,
-  "steps": 18,
-  "t0": 1785221972,
-  "t1": 1787959324,
-  "built": 220,
-  "removed": 112
+  "structures": 938,
+  "steps": 13,
+  "t0": 1786878185,
+  "t1": 1788224891,
+  "built": 54,
+  "removed": 74
  },
  "5fed0024": {
   "name": "Lost Camp",
-  "structures": 65,
+  "structures": 73,
   "steps": 7,
   "t0": 1785221972,
   "t1": 1785384586,
-  "built": 40,
-  "removed": 4
+  "built": 0,
+  "removed": 0,
+  "synthetic": false
+ },
+ "c0105eum": {
+  "name": "Colosseum Maximus",
+  "structures": 2775,
+  "steps": 1,
+  "t0": 1787268757,
+  "t1": 1787268757,
+  "built": 0,
+  "removed": 0,
+  "synthetic": true
  },
  "de44d9f4": {
   "name": "Stone Works",
   "structures": 991,
   "steps": 20,
   "t0": 1786878185,
-  "t1": 1787959324,
+  "t1": 1788224891,
   "built": 24,
   "removed": 19
  }
