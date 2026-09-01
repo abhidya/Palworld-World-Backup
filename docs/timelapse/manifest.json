@@ -27,6 +27,15 @@
   "removed": 0,
   "synthetic": false
  },
+ "a4c6da33": {
+  "name": "Quartz Colosseum",
+  "structures": 4982,
+  "steps": 1,
+  "t0": 1788224530,
+  "t1": 1788224891,
+  "built": 0,
+  "removed": 0
+ },
  "c0105eum": {
   "name": "Colosseum Maximus",
   "structures": 2775,
