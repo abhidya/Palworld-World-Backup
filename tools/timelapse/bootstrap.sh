@@ -62,6 +62,21 @@ else
   [ "$n" != "0" ] && echo "[bootstrap] WARNING: $n mappal commits are not on any remote - push them"
 fi
 
+# ---- 2b. node deps for the render driver ----------------------------------
+# timelapse.mjs imports puppeteer-core, and node resolves node_modules by
+# walking up from the importing file - so it must exist under tools/timelapse
+# itself. This used to be a symlink into the scratch volume, which meant the
+# dependency was real but undeclared: nothing referenced the path in text, and
+# deleting the link broke the render with no reference to follow. It is a
+# package.json now, so npm recreates it.
+if [ ! -d "$REPO/tools/timelapse/node_modules/puppeteer-core" ]; then
+  echo "[bootstrap] npm install in $REPO/tools/timelapse"
+  (cd "$REPO/tools/timelapse" && npm install --no-audit --no-fund --silent)
+fi
+node -e "require('$REPO/tools/timelapse/node_modules/puppeteer-core/package.json')" 2>/dev/null \
+  && echo "[bootstrap] puppeteer-core $(node -p "require('$REPO/tools/timelapse/node_modules/puppeteer-core/package.json').version")" \
+  || { echo "[bootstrap] ERROR: puppeteer-core still unresolvable" >&2; exit 1; }
+
 # ---- 3. PalworldSaveTools (palworld_aio) ----------------------------------
 PST_ROOT="$PALTL_WORK/pst"
 if [ ! -d "$PST_ROOT/.git" ]; then

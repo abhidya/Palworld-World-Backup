@@ -21,3 +21,5 @@ __pycache__/
 # of someone else's repository, and this one is a disaster-recovery copy of a
 # world, not a dependency cache.
 /tools/timelapse/extractors/cue4parse/
+# Recreated by that same script from tools/timelapse/package.json.
+/tools/timelapse/node_modules/

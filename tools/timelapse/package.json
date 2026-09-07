@@ -1,0 +1,8 @@
+{
+  "name": "palworld-timelapse-render",
+  "private": true,
+  "description": "Node dependencies for timelapse.mjs, the headless render driver. Kept as a manifest rather than a symlink into the scratch volume so a checkout can recreate it: tools/timelapse/bootstrap.sh runs npm install here. No 'type' field on purpose - timelapse.mjs is ESM by its .mjs extension, and buildorder.js must stay CommonJS.",
+  "dependencies": {
+    "puppeteer-core": "24.43.1"
+  }
+}
