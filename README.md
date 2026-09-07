@@ -53,6 +53,76 @@ Verify a clone is real save data, not pointers:
 python scripts/verify_snapshot.py .
 ```
 
+## Server updates
+
+Two independent things update, on different mechanisms. Conflating them wastes a
+restart and misses the one that actually matters.
+
+| Axis | What it is | How it updates |
+|---|---|---|
+| **Game build** | Palworld dedicated-server build (SteamCMD manifest) | Automatic, daily, player-gated |
+| **Container image** | `thijsvanloef/palworld-server-docker` | Manual — `pull` + `up -d` |
+
+### Game build — automatic, already player-gated
+
+Driven entirely by the image's own updater, configured in the host `.env` (never
+committed):
+
+```
+UPDATE_ON_BOOT=true
+AUTO_UPDATE_ENABLED=true
+AUTO_UPDATE_CRON_EXPRESSION=0 5 * * *
+AUTO_UPDATE_WARN_MINUTES=5
+```
+
+The cron fires at 05:00 local. `countdown_message()` in the image's
+`helper_functions.sh` skips the countdown outright when nobody is online; with
+players connected it broadcasts a 5-minute warning, re-checks the player count
+every minute, and cuts out early once the last player leaves. `shutdown_server()`
+then **saves first and refuses to shut down if the save fails**.
+
+Confirmed unattended: v1.0.3.101283 → v1.0.4.102642 on 2026-09-07 at 05:00 PDT.
+
+```
+2026-09-07 12:00:14Z  An Update Is Available. Latest Version: 1125678324530723107
+2026-09-07 12:02:11Z  Game version is v1.0.4.102642
+```
+
+**Do not add update polling or restart logic to `scripts/snapshot_from_mac.py`.**
+It races the cron and restarts without the pre-shutdown save. Detecting updates
+by grepping `docker logs --tail=N` is also unsound in both directions: the
+boot-time string scrolls out of the window (missed update), and while it is still
+in the window every 60 s poll fires another restart (restart loop). The snapshot
+job's only job is to snapshot.
+
+### Container image — manual
+
+`docker compose restart` re-runs the entrypoint, so it *does* pick up a pending
+game build — but it **never** changes the image. A newer image appears in the
+boot log as `New version available: <tag>` and needs an explicit pull, which
+recreates the container:
+
+```bash
+python3 scripts/snapshot_from_mac.py --force     # safety net first
+cd server-config && docker compose pull && docker compose up -d
+```
+
+Recreating is safe because the game install lives in the external
+`palworld-game` volume and saves are bind-mounted — see the comments in
+`server-config/docker-compose.yml` for why that split exists.
+
+### Checking versions
+
+```bash
+# live game build, via the REST API
+python3 -c "import sys; sys.path.insert(0,'scripts'); import snapshot_from_mac as s; \
+  print(s.api_get('/info', s.load_env()['ADMIN_PASSWORD'])['version'])"
+
+# game build + pending image, from the boot log
+docker logs palworld-server 2>&1 \
+  | grep -aE "Game version is|An Update Is Available|New version available" | tail
+```
+
 ## Dashboard (GitHub Pages)
 
 `docs/` hosts a static dashboard built from every snapshot — bases, inventory,
