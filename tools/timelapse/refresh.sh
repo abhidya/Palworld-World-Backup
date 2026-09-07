@@ -41,7 +41,7 @@ export PYTHONPATH="$WORK:$WORK/pst/src:$WORK/pst/src/palsav${PALTL_SITE_PACKAGES
 # is guarded, so every snapshot lands in the `skipped` count and it writes an
 # empty index - then build_union dies on the same import hours of work later, or
 # worse, a render proceeds on nothing. Fail here, loudly, in the first second.
-if ! python3 -c 'import ooz, palworld_save_tools\nfrom palworld_aio.managers.base_manager import export_base_json' 2>/dev/null; then
+if ! python3 -c 'import ooz, palworld_save_tools; from palworld_aio.managers.base_manager import export_base_json' 2>/dev/null; then
   echo "[timelapse] ooz / palworld_save_tools / palworld_aio not importable by $(command -v python3)." >&2
   echo "[timelapse] Run tools/timelapse/bootstrap.sh, and set PALTL_SITE_PACKAGES, e.g." >&2
   echo "[timelapse]   PALTL_SITE_PACKAGES=~/PalworldServer/dashboard-venv/lib/python3.14/site-packages" >&2
