@@ -15,3 +15,8 @@ __pycache__/
 /tools/dashboard/trends.js
 /tools/dashboard/*cache*.json
 /tools/dashboard/.update.lock
+
+# Local render-workspace wiring: absolute symlinks into PALTL_WORK on this
+# host. Committing them would put dangling paths into the recovery copy.
+/tools/timelapse/node_modules
+/tools/timelapse/extractors/cue4parse

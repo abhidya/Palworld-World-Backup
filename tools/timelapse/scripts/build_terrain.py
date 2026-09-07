@@ -461,6 +461,13 @@ if sys.argv[1] == "--manifest":
 # anything the shot can see. Raise it (with GROUND_R) for wider cameras.
 RADIUS = float(sys.argv[2]) if len(sys.argv) > 2 else 30000.0
 b = sys.argv[1]
+if b not in BASES:
+    # not in the hand-kept table: read the camp anchor from the base's own
+    # union export - new bases enter the pipeline without editing this file
+    _u = json.load(open(f"{OUT_UNION}/union_{b}.json"))
+    _t = _u["base_camp"]["value"]["RawData"]["value"]["transform"]["translation"]
+    BASES[b] = (float(_t["x"]), float(_t["y"]), float(_t["z"]))
+    print(f"  anchor for {b} from union_{b}.json: {BASES[b]}")
 bx, by, bz = BASES[b]
 
 
@@ -1088,7 +1095,7 @@ if os.path.exists(widx_path):
         nwater["ocean"] = len(tiles)
         print(f"  ocean: {len(tiles)} tiles < {OCEAN_R/100:.0f} m -> {nm}.glb "
               f"({len(ov)} v, {len(oi)//3} t, "
-              f"{os.path.getsize(f'{OUT_MESH}/{nm}.glb')//1024} KB), sea level "
+              f"{os.path.getsize(f'{odir}/{nm}.glb')//1024} KB), sea level "
               f"Z={oc['seaLevelZ']} cm")
 
     # ---- 3b. placed water: waterfalls, pond planes, the bend mesh ----------

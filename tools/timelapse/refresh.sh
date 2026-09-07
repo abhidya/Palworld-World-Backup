@@ -43,10 +43,17 @@ if [[ "${1:-}" != "--force" && -f "$STAMP" ]]; then
   echo "[timelapse] $n new world commits since last render - regenerating"
 fi
 
-# 1. rebuild the history indexes from every Level.sav we hold
+# 1. rebuild the history indexes from every Level.sav we hold.
+#    commits.txt is derived, not curated - regenerate it or every downstream
+#    index silently renders stale history (found 2026-08-31: file was 10
+#    snapshots behind and a brand-new base crashed demolitions.py).
+git log --format='%H %ct' -- world/current > "$WORK/commits.txt"
 python3 "$REPO/tools/timelapse/scripts/build_index.py" "$WORK/commits.txt" "$WORK/build_index.json"
 python3 "$REPO/tools/timelapse/scripts/pal_index.py"
 python3 "$REPO/tools/timelapse/scripts/build_union.py" "$WORK"
+# build_times derives per-site clocks AND the render manifest (the site
+# registry) from build_index - without it new bases never enter the renders.
+python3 "$MAPPAL_ROOT/tools/timelapse/build_times.py" "$WORK"
 python3 "$REPO/tools/timelapse/scripts/build_actor_scenes.py"
 python3 "$REPO/tools/timelapse/scripts/demolitions.py"
 python3 "$REPO/tools/timelapse/scripts/build_endoflife.py"
@@ -66,7 +73,9 @@ done
 PORT="${PORT:-4174}"
 export PORT
 VITE_LOG="$WORK/vite-timelapse.log"
-"$MAPPAL_ROOT/node_modules/.bin/vite" --host 127.0.0.1 --port "$PORT" --strictPort \
+# vite's serve root defaults to its cwd, and we are in $REPO here - pass the
+# app root explicitly or it serves a directory with no index.html (404s).
+"$MAPPAL_ROOT/node_modules/.bin/vite" "$MAPPAL_ROOT" --host 127.0.0.1 --port "$PORT" --strictPort \
   >"$VITE_LOG" 2>&1 &
 VITE_PID=$!
 cleanup_vite() { kill "$VITE_PID" 2>/dev/null || true; }

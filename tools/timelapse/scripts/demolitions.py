@@ -151,6 +151,11 @@ def main():
     report = {}
     for b in BASES:
         rows = [r for r in rows_all if r["base"] == b]
+        if not rows:
+            # a base that exists in the current save but predates no indexed
+            # snapshot yet (e.g. imported this hour) has no demolition history
+            print(f"[demolitions] {b}: no indexed pieces yet - skipping")
+            continue
         builders = json.load(open(os.path.join(UNION, f"builders_{b}.json")))["builders"]
         sens = {}
         for thr in (0.15, 0.20, 0.30, 0.50, 0.70):
@@ -228,10 +233,12 @@ def main():
 
     print(f'{"base":10s} {"name":12s} {"pieces":>7s} {"removals":>9s} {"pairs":>6s} {"attr":>5s} {"unattr":>7s} {"unpaired":>9s}')
     for b in BASES:
+        if b not in report: continue
         c = report[b][0]
         print(f'{b:10s} {NAMES[b]:12s} {c["total_pieces"]:7d} {c["removals"]:9d} '
               f'{c["pairs"]:6d} {c["attributed"]:5d} {c["unattributed"]:7d} {c["unpaired_removals"]:9d}')
     for b in BASES:
+        if b not in report: continue
         c, sens, pat, attr, uids = report[b]
         print(f"\n== {NAMES[b]} ({b})")
         print("  sensitivity (pairs):", sens)
