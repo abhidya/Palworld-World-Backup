@@ -47,9 +47,36 @@ a moment. Lost Camp's disappearance is labelled that way: present 2026-08-11
 
 ```bash
 export PALTL_WORK=/path/to/scratch     # holds extracted assets + frames
+tools/timelapse/bootstrap.sh           # recreate dependencies (idempotent)
 tools/timelapse/refresh.sh             # guarded: skips unless enough new history
 tools/timelapse/refresh.sh --force     # ignore the guard
 ```
+
+### Dependencies
+
+`bootstrap.sh` recreates everything the pipeline needs from upstream, so a bare
+clone can render. Re-run it any time; it never resets a checkout that has local
+work.
+
+| Dependency | Where it lands | Source |
+|---|---|---|
+| CUE4Parse | `extractors/cue4parse/` (git-ignored) | `FabianFG/CUE4Parse` pinned at `9893d83b` |
+| mappal (renderer app) | `$PALTL_WORK/mappal`, i.e. `MAPPAL_ROOT` | `abhidya/mappal-palworld`, branch `fix/timelapse-camera-water-builders` |
+
+CUE4Parse has to be a **real directory** at that path, not a link: the extractor
+`.csproj` files reference `../cue4parse/CUE4Parse/CUE4Parse.csproj` relatively.
+It is pinned rather than tracking upstream `main` because the extractors are
+written against that API — bump it deliberately and rebuild.
+
+> **No symlinks into the scratch volume, ever.** They were used here once and
+> the failure mode is quiet: an absolute path into one machine's external disk
+> is not a dependency, it is a machine that has to still exist. Anything the
+> pipeline needs is either committed or recreated by this script.
+
+`bootstrap.sh` also warns when the mappal checkout holds commits that are on no
+remote. That check is worth trusting now — mappal's fetch refspec used to be
+narrowed to a single branch, so `git branch -r --contains` and `--not --remotes`
+reported pushed work as unpushed. It is `+refs/heads/*:refs/remotes/origin/*`.
 
 `refresh.sh` rebuilds the history indexes, renders every site, encodes, and
 publishes to `docs/timelapse/`.

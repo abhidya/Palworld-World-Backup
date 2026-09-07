@@ -16,7 +16,8 @@ __pycache__/
 /tools/dashboard/*cache*.json
 /tools/dashboard/.update.lock
 
-# Local render-workspace wiring: absolute symlinks into PALTL_WORK on this
-# host. Committing them would put dangling paths into the recovery copy.
-/tools/timelapse/node_modules
-/tools/timelapse/extractors/cue4parse
+# Third-party source, recreated at a pinned commit by
+# tools/timelapse/bootstrap.sh. Not vendored and never a symlink: it is 78 MB
+# of someone else's repository, and this one is a disaster-recovery copy of a
+# world, not a dependency cache.
+/tools/timelapse/extractors/cue4parse/
