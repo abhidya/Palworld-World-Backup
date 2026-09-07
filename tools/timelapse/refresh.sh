@@ -29,16 +29,19 @@ trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
 export PALTL_WORK="$WORK"
 export PALTL_REPO="$REPO"
 export MAPPAL_ROOT
-# pst/ is the PalworldSaveTools checkout (bootstrap.sh clones it); build_union
-# imports palworld_aio from its src/.
-export PYTHONPATH="$WORK:$WORK/pst/src${PALTL_SITE_PACKAGES:+:$PALTL_SITE_PACKAGES}${PYTHONPATH:+:$PYTHONPATH}"
+# pst/ is the PalworldSaveTools checkout (bootstrap.sh clones it). Two entries:
+# src/ holds palworld_aio, and src/palsav is a vendored sub-project whose real
+# package sits one level down at src/palsav/palsav. Without that second entry
+# `palsav` binds to the sub-project directory as a namespace package - the
+# import succeeds and palsav.archive then does not exist.
+export PYTHONPATH="$WORK:$WORK/pst/src:$WORK/pst/src/palsav${PALTL_SITE_PACKAGES:+:$PALTL_SITE_PACKAGES}${PYTHONPATH:+:$PYTHONPATH}"
 
 # Preflight. ooz (Oodle) decompresses Level.sav and lives in the dashboard venv,
 # never on the system python. Without it pal_index.py does not fail: its import
 # is guarded, so every snapshot lands in the `skipped` count and it writes an
 # empty index - then build_union dies on the same import hours of work later, or
 # worse, a render proceeds on nothing. Fail here, loudly, in the first second.
-if ! python3 -c 'import ooz, palworld_save_tools, palworld_aio' 2>/dev/null; then
+if ! python3 -c 'import ooz, palworld_save_tools\nfrom palworld_aio.managers.base_manager import export_base_json' 2>/dev/null; then
   echo "[timelapse] ooz / palworld_save_tools / palworld_aio not importable by $(command -v python3)." >&2
   echo "[timelapse] Run tools/timelapse/bootstrap.sh, and set PALTL_SITE_PACKAGES, e.g." >&2
   echo "[timelapse]   PALTL_SITE_PACKAGES=~/PalworldServer/dashboard-venv/lib/python3.14/site-packages" >&2
