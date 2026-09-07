@@ -31,6 +31,18 @@ export PALTL_REPO="$REPO"
 export MAPPAL_ROOT
 export PYTHONPATH="$WORK${PALTL_SITE_PACKAGES:+:$PALTL_SITE_PACKAGES}${PYTHONPATH:+:$PYTHONPATH}"
 
+# Preflight. ooz (Oodle) decompresses Level.sav and lives in the dashboard venv,
+# never on the system python. Without it pal_index.py does not fail: its import
+# is guarded, so every snapshot lands in the `skipped` count and it writes an
+# empty index - then build_union dies on the same import hours of work later, or
+# worse, a render proceeds on nothing. Fail here, loudly, in the first second.
+if ! python3 -c 'import ooz, palworld_save_tools' 2>/dev/null; then
+  echo "[timelapse] ooz / palworld_save_tools are not importable by $(command -v python3)." >&2
+  echo "[timelapse] Set PALTL_SITE_PACKAGES to the site-packages holding them, e.g." >&2
+  echo "[timelapse]   PALTL_SITE_PACKAGES=~/PalworldServer/dashboard-venv/lib/python3.14/site-packages" >&2
+  exit 1
+fi
+
 cd "$REPO"
 head_now="$(git rev-parse HEAD)"
 if [[ "${1:-}" != "--force" && -f "$STAMP" ]]; then

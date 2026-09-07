@@ -47,10 +47,24 @@ a moment. Lost Camp's disappearance is labelled that way: present 2026-08-11
 
 ```bash
 export PALTL_WORK=/path/to/scratch     # holds extracted assets + frames
+export PALTL_SITE_PACKAGES=~/PalworldServer/dashboard-venv/lib/python3.14/site-packages
 tools/timelapse/bootstrap.sh           # recreate dependencies (idempotent)
 tools/timelapse/refresh.sh             # guarded: skips unless enough new history
 tools/timelapse/refresh.sh --force     # ignore the guard
 ```
+
+### `ooz` is mandatory, and its absence used to be silent
+
+`ooz` (Oodle) decompresses `Level.sav`. It is a compiled `abi3` extension that
+lives in the dashboard venv, never on the system python, so the render needs
+`PALTL_SITE_PACKAGES` pointing at that venv's `site-packages`.
+
+Without it the pipeline did not fail — it produced nothing and kept going.
+`pal_index.py` guards its `import ooz`, so every snapshot fell into the
+`skipped` count and it wrote an empty index (`used=0 skipped=1180`, 0 pals, no
+bases, a 0 KB file, exit 0). `build_union.py` then died on the same import.
+`refresh.sh` now preflights both imports and exits in the first second with the
+variable to set, rather than burning hours on an empty world.
 
 ### Dependencies
 
