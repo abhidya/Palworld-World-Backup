@@ -47,14 +47,17 @@ git lfs install
 git clone https://github.com/abhidya/Palworld-World-Backup.git
 ```
 
-Rendered timelapses (`*.mp4`, `*.webm`) are in LFS for the same reason — each
-re-render rewrites ~250 MB wholesale, and one site has already blown past
-GitHub's 100 MB hard cap.
+Rendered timelapses are the **exception**: `docs/timelapse/*.mp4` must stay out
+of LFS. GitHub Pages does not run the LFS smudge filter, so an LFS-tracked video
+reaches the browser as its ~130-byte pointer file and the player breaks. Size is
+controlled at encode time instead — `tools/timelapse/encode.sh` re-encodes at
+rising CRF until each file fits under `MAX_MP4_BYTES`.
 
-> **Outstanding:** the ~252 MB of `docs/timelapse/*.mp4` committed *before* that
-> rule are still plain git blobs, and `.git` is ~3.4 GB as a result. New renders
-> go to LFS from here; shrinking the existing history needs `git lfs migrate`,
-> which rewrites commits and has not been done.
+> **Outstanding:** ~252 MB of `docs/timelapse/*.mp4` sit in history as plain
+> blobs and `.git` is ~3.4 GB. Lowering the encode ceiling caps future growth
+> but cannot shrink what is already committed; only a history rewrite
+> (`git filter-repo` — **not** `git lfs migrate`, which would break Pages)
+> would do that, and it has not been done.
 
 Verify a clone is real save data, not pointers:
 
