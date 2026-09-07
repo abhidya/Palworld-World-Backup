@@ -103,13 +103,26 @@ boot log as `New version available: <tag>` and needs an explicit pull, which
 recreates the container:
 
 ```bash
-python3 scripts/snapshot_from_mac.py --force     # safety net first
-cd server-config && docker compose pull && docker compose up -d
+python3 scripts/snapshot_from_mac.py --force               # safety net first
+cd ~/PalworldServer && docker compose pull && docker compose up -d
 ```
 
-Recreating is safe because the game install lives in the external
+**Run compose from `~/PalworldServer`, never from this repo.** The live project
+is `~/PalworldServer/docker-compose.yml` (compose project `palworldserver`, with
+its `.env` beside it). `server-config/docker-compose.yml` here is a *tracked
+copy* for disaster recovery — byte-identical, but compose invoked from
+`server-config/` aborts on the missing `.env`, and a `docker compose restart`
+that never ran still exits quietly enough to look like it worked.
+
+Recreating the container is safe because the game install lives in the external
 `palworld-game` volume and saves are bind-mounted — see the comments in
-`server-config/docker-compose.yml` for why that split exists.
+`server-config/docker-compose.yml` for why that split exists. Confirm afterwards
+that the banner flipped:
+
+```
+The server is up to date!
+The container is up to date!
+```
 
 ### Checking versions
 
