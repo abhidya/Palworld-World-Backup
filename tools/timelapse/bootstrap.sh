@@ -21,6 +21,11 @@ CUE4PARSE_REF="9893d83ba7fed6c9486cfeb758632879d794ec32"
 MAPPAL_URL="https://github.com/abhidya/mappal-palworld.git"
 MAPPAL_BRANCH="fix/timelapse-camera-water-builders"
 
+# PalworldSaveTools. build_union.py imports palworld_aio from its src/, which
+# refresh.sh puts on PYTHONPATH as $PALTL_WORK/pst/src.
+PST_URL="https://github.com/deafdudecomputers/PalworldSaveTools.git"
+PST_REF="79da8fb"
+
 # ---- 1. CUE4Parse ---------------------------------------------------------
 # extractors/*/*.csproj reference ../cue4parse/... by relative path, so this
 # must be a real directory inside the repo, not a link to one.
@@ -56,6 +61,17 @@ else
   n="$(git -C "$MAPPAL_ROOT" rev-list --count HEAD --not --remotes 2>/dev/null || echo 0)"
   [ "$n" != "0" ] && echo "[bootstrap] WARNING: $n mappal commits are not on any remote - push them"
 fi
+
+# ---- 3. PalworldSaveTools (palworld_aio) ----------------------------------
+PST_ROOT="$PALTL_WORK/pst"
+if [ ! -d "$PST_ROOT/.git" ]; then
+  echo "[bootstrap] cloning PalworldSaveTools -> $PST_ROOT"
+  git clone --quiet "$PST_URL" "$PST_ROOT"
+  git -C "$PST_ROOT" checkout --quiet --detach "$PST_REF"
+fi
+[ -d "$PST_ROOT/src/palworld_aio" ] \
+  || echo "[bootstrap] WARNING: $PST_ROOT/src/palworld_aio missing - build_union will fail"
+echo "[bootstrap] pst        $(git -C "$PST_ROOT" rev-parse --short HEAD)"
 
 # vite and the render toolchain resolve from mappal's own node_modules; nothing
 # in this repo needs a node_modules of its own.
