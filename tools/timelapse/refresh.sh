@@ -25,7 +25,13 @@ if ! mkdir "$LOCK" 2>/dev/null; then
   echo "[timelapse] a refresh is already running (lock: $LOCK) - skipping"
   exit 0
 fi
-trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+# Every EXIT path must drop the lock. Traps do not stack - a later
+# `trap ... EXIT` replaces this one - so the vite handler below re-registers
+# release_lock alongside itself rather than overwriting it. Getting this wrong
+# orphans the lock on success as well as failure, and every later run then
+# exits 0 having done nothing.
+release_lock() { rmdir "$LOCK" 2>/dev/null || true; }
+trap release_lock EXIT
 export PALTL_WORK="$WORK"
 export PALTL_REPO="$REPO"
 export MAPPAL_ROOT
@@ -96,7 +102,7 @@ VITE_LOG="$WORK/vite-timelapse.log"
   >"$VITE_LOG" 2>&1 &
 VITE_PID=$!
 cleanup_vite() { kill "$VITE_PID" 2>/dev/null || true; }
-trap cleanup_vite EXIT
+trap 'cleanup_vite; release_lock' EXIT
 for _ in {1..120}; do
   curl -fsS "http://127.0.0.1:$PORT/" >/dev/null 2>&1 && break
   kill -0 "$VITE_PID" 2>/dev/null || { cat "$VITE_LOG" >&2; exit 1; }
@@ -111,7 +117,7 @@ curl -fsS "http://127.0.0.1:$PORT/" >/dev/null || {
 # 4. render every base, one placed piece per frame, then encode
 ( cd "$WORK" && bash "$REPO/tools/timelapse/final_render_all.sh" )
 cleanup_vite
-trap - EXIT
+trap release_lock EXIT   # not `trap - EXIT`: that dropped the lock handler too
 
 # 5. publish into docs/ for GitHub Pages (mp4 must NOT be git-lfs tracked:
 #    Pages serves LFS pointer files verbatim and playback breaks)
