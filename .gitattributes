@@ -3,6 +3,11 @@
 # identical files across snapshots dedupe to a single object by content hash.
 *.sav      filter=lfs diff=lfs merge=lfs -text
 *.sav.gz   filter=lfs diff=lfs merge=lfs -text
+# Rendered timelapses are large binaries rewritten wholesale on every render.
+# Without LFS each re-render adds ~250 MB of blobs to git history permanently,
+# and a single site has already exceeded GitHub's 100 MB hard cap once.
+*.mp4      filter=lfs diff=lfs merge=lfs -text
+*.webm     filter=lfs diff=lfs merge=lfs -text
 # Everything tracked below is text and must stay diffable in the browser.
 *.md       text eol=lf
 *.json     text eol=lf

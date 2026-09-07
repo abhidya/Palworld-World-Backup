@@ -47,6 +47,15 @@ git lfs install
 git clone https://github.com/abhidya/Palworld-World-Backup.git
 ```
 
+Rendered timelapses (`*.mp4`, `*.webm`) are in LFS for the same reason — each
+re-render rewrites ~250 MB wholesale, and one site has already blown past
+GitHub's 100 MB hard cap.
+
+> **Outstanding:** the ~252 MB of `docs/timelapse/*.mp4` committed *before* that
+> rule are still plain git blobs, and `.git` is ~3.4 GB as a result. New renders
+> go to LFS from here; shrinking the existing history needs `git lfs migrate`,
+> which rewrites commits and has not been done.
+
 Verify a clone is real save data, not pointers:
 
 ```bash
@@ -113,6 +122,14 @@ its `.env` beside it). `server-config/docker-compose.yml` here is a *tracked
 copy* for disaster recovery — byte-identical, but compose invoked from
 `server-config/` aborts on the missing `.env`, and a `docker compose restart`
 that never ran still exits quietly enough to look like it worked.
+
+A weekly launchd job (`com.mannybhidya.palworld-image-check`) compares the local
+image digest against the registry and raises a notification when they diverge —
+it is read-only and never pulls or restarts. Run it by hand any time:
+
+```bash
+scripts/check_container_image.sh        # exit 0 current, 1 stale, 2 undetermined
+```
 
 Recreating the container is safe because the game install lives in the external
 `palworld-game` volume and saves are bind-mounted — see the comments in
