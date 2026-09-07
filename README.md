@@ -53,11 +53,22 @@ reaches the browser as its ~130-byte pointer file and the player breaks. Size is
 controlled at encode time instead — `tools/timelapse/encode.sh` re-encodes at
 rising CRF until each file fits under `MAX_MP4_BYTES`.
 
-> **Outstanding:** ~252 MB of `docs/timelapse/*.mp4` sit in history as plain
-> blobs and `.git` is ~3.4 GB. Lowering the encode ceiling caps future growth
-> but cannot shrink what is already committed; only a history rewrite
-> (`git filter-repo` — **not** `git lfs migrate`, which would break Pages)
-> would do that, and it has not been done.
+The ceiling is set on the host rather than in the script, so the render job can
+be tuned without editing the pipeline: `MAX_MP4_BYTES=40000000` is exported by
+the `com.mannybhidya.palworld-snapshot` launchd job and inherited all the way
+down to `encode.sh`. 40 MB sits under GitHub's 50 MB push-warning threshold, and
+one CRF step (24) measured ~28 MB for the largest site — so it lands in a single
+re-encode rather than escalating to the soft end of the ladder. Delete the
+variable to fall back to the 95 MB default.
+
+> **Known debt, deliberately not paid:** mp4s occupy ~856 MB across 32 blob
+> versions in history (`.git` is 3.4 GB — 2.4 GB of that is the `.sav` LFS store
+> and is the point of the repo). Removing them means `git filter-repo` and a
+> force-push of the *disaster-recovery copy of a live world*, to reclaim ~25% of
+> a repo that is nowhere near a limit and is failing nothing. The ceiling above
+> caps the growth that actually mattered; the rewrite stays available later, at
+> a moment when it is not being traded against backup integrity.
+> Note `git lfs migrate` is **not** an option — see above, Pages cannot serve it.
 
 Verify a clone is real save data, not pointers:
 
