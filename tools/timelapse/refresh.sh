@@ -42,6 +42,20 @@ export MAPPAL_ROOT
 # import succeeds and palsav.archive then does not exist.
 export PYTHONPATH="$WORK:$WORK/pst/src:$WORK/pst/src/palsav${PALTL_SITE_PACKAGES:+:$PALTL_SITE_PACKAGES}${PYTHONPATH:+:$PYTHONPATH}"
 
+# Preflight. The workspace must be genuinely readable, not merely stat-able.
+# Under launchd on macOS, TCC lets `test -d` and `test -r` on /Volumes/... both
+# succeed while the actual directory read returns empty - so is_dir() guards
+# pass and the render proceeds against a workspace it cannot see. Listing it is
+# the only honest check.
+if [ "$(ls -A "$WORK" 2>/dev/null | wc -l | tr -d ' ')" = "0" ]; then
+  echo "[timelapse] $WORK is empty or unreadable by this process." >&2
+  echo "[timelapse] Under launchd this is macOS TCC: grant Full Disk Access to" >&2
+  echo "[timelapse] the interpreter running the job (System Settings > Privacy &" >&2
+  echo "[timelapse] Security > Full Disk Access). Until then the render only runs" >&2
+  echo "[timelapse] from a user shell." >&2
+  exit 1
+fi
+
 # Preflight. ooz (Oodle) decompresses Level.sav and lives in the dashboard venv,
 # never on the system python. Without it pal_index.py does not fail: its import
 # is guarded, so every snapshot lands in the `skipped` count and it writes an
