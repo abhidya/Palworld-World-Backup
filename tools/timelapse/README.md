@@ -53,6 +53,35 @@ tools/timelapse/refresh.sh             # guarded: skips unless enough new histor
 tools/timelapse/refresh.sh --force     # ignore the guard
 ```
 
+### The launchd job must run Homebrew python, not `/usr/bin/python3`
+
+The render workspace lives on an external volume, and macOS TCC gates
+`/Volumes/...` for launchd jobs. Two things make this hard to diagnose:
+
+**The denial is deceptive.** Under launchd, `test -d` and `test -r` on the
+workspace both *succeed* while the directory read returns empty. So
+`Path(work).is_dir()` in `snapshot_from_mac.py` passes, the render starts
+against a workspace it cannot see, and fails detached with its exit code
+discarded. `refresh.sh` now preflights by actually listing the directory.
+
+**Full Disk Access does not apply to `/usr/bin/python3`.** That path is a shim
+which re-execs `/Library/Developer/CommandLineTools/usr/bin/python3`, and TCC
+attributes the grant to the binary that actually runs. Measured under launchd
+after granting FDA:
+
+| interpreter | can read the workspace |
+|---|---|
+| `/usr/bin/python3` (shim → CLT) | no |
+| `/Library/Developer/CommandLineTools/usr/bin/python3` | no |
+| `/usr/local/bin/python3` (Homebrew) | **yes** |
+| `dashboard-venv/bin/python` | **yes** |
+
+So `com.mannybhidya.palworld-snapshot` runs `/usr/local/bin/python3`. The grant
+inherits to children, including the detached `refresh.sh` that
+`trigger_timelapse_refresh` spawns with `start_new_session=True` — verified.
+
+Re-granting is needed if Homebrew's python is replaced by a major upgrade.
+
 ### `ooz` is mandatory, and its absence used to be silent
 
 `ooz` (Oodle) decompresses `Level.sav`. It is a compiled `abi3` extension that
