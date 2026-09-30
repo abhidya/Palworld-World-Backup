@@ -1,5 +1,5 @@
 {
-  "snapshot_timestamp": "2026-09-29T16:47:55-0700",
+  "snapshot_timestamp": "2026-09-30T16:48:39-0700",
   "reason": "idle ceiling: server up but unplayed for 24.0 h",
   "world_id": "64EE4B2C4C81F4912BF109850820D9BA",
   "world_id_proof": "live server /v1/api/info worldguid=64EE4B2C4C81F4912BF109850820D9BA",
@@ -11,29 +11,29 @@
   "players_at_snapshot": 0,
   "snapshot_boundary": "server running (0 players); REST /v1/api/save accepted",
   "file_count": 9,
-  "total_bytes": 2520718,
+  "total_bytes": 2519586,
   "critical_file_hashes": {
-    "Level.sav": "db0294f23399e825e420e635fbee16282e6bef8e3abe6a8df0025cef8f13ea32",
-    "LevelMeta.sav": "9b113fcf6fbb6cd7957111cbe30c6b86c225ae67a4c720d6e3e8fd8c08a5b8d2",
+    "Level.sav": "61ea55a2462146b70903205040dbaa04266af7e8a0a42079065822e84eb3de99",
+    "LevelMeta.sav": "a5c4a7ce31e69ca2e97a3457c8249b0489c5533fe2f2eaa0084265706cf25c6b",
     "WorldOption.sav": "3e966914b81e163463fb251d2829d5fab8cb638059365fc00d8befe3eac4760d"
   },
   "player_save_hashes": {
-    "Players\\00000000000000000000000000000001.sav": "5aac5dbad03aaa758254663285b322b6440aefefabe6d4c59f7d33bcd2a2c48d",
-    "Players\\54001E88000000000000000000000000.sav": "39f5e8de774a75f7783ed4361d2fd1140db8a65ba3cb42293a2a6f7e9d2e1335",
+    "Players\\00000000000000000000000000000001.sav": "7688f201d34ecf1114b5783883ffb8c7169f51641dfaeebfc51b0fa81a67a3f1",
+    "Players\\54001E88000000000000000000000000.sav": "a01e2ca70d7d14fd5162a6c4d8e993a585d01344caf1eac53cee6570ae77e628",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "5ebc6266322d6407aaf234bf1d9580034ddab27e0d227b90d40187d222ad2560",
-    "Players\\D87864F3000000000000000000000000.sav": "abcef80c34a3849eae182aa1ee339dc5efd7c0010e2a07f9fc5eb7ce33cebe33",
+    "Players\\9C8317FC000000000000000000000000.sav": "5474f7d4523aaa467327df885fe27e5fc2263aa94d9be9ee924babd1df004316",
+    "Players\\D87864F3000000000000000000000000.sav": "f7a0f23bccc0fccde4e6b0eacc603581ad3bbdbee997474fac7e52f1a570592d",
     "Players\\D87864F3000000000000000000000000_dps.sav": "550a2896ec642400da9d0df3c1c5015a22213989e891e47e539df8e9d9083c50"
   },
   "all_file_hashes": {
-    "Level.sav": "db0294f23399e825e420e635fbee16282e6bef8e3abe6a8df0025cef8f13ea32",
-    "LevelMeta.sav": "9b113fcf6fbb6cd7957111cbe30c6b86c225ae67a4c720d6e3e8fd8c08a5b8d2",
+    "Level.sav": "61ea55a2462146b70903205040dbaa04266af7e8a0a42079065822e84eb3de99",
+    "LevelMeta.sav": "a5c4a7ce31e69ca2e97a3457c8249b0489c5533fe2f2eaa0084265706cf25c6b",
     "WorldOption.sav": "3e966914b81e163463fb251d2829d5fab8cb638059365fc00d8befe3eac4760d",
-    "Players\\00000000000000000000000000000001.sav": "5aac5dbad03aaa758254663285b322b6440aefefabe6d4c59f7d33bcd2a2c48d",
-    "Players\\54001E88000000000000000000000000.sav": "39f5e8de774a75f7783ed4361d2fd1140db8a65ba3cb42293a2a6f7e9d2e1335",
+    "Players\\00000000000000000000000000000001.sav": "7688f201d34ecf1114b5783883ffb8c7169f51641dfaeebfc51b0fa81a67a3f1",
+    "Players\\54001E88000000000000000000000000.sav": "a01e2ca70d7d14fd5162a6c4d8e993a585d01344caf1eac53cee6570ae77e628",
     "Players\\54001E88000000000000000000000000_dps.sav": "10368fde5fb514bb58e625413a4398ce9e32e84ebe79806a0218c73f0105259a",
-    "Players\\9C8317FC000000000000000000000000.sav": "5ebc6266322d6407aaf234bf1d9580034ddab27e0d227b90d40187d222ad2560",
-    "Players\\D87864F3000000000000000000000000.sav": "abcef80c34a3849eae182aa1ee339dc5efd7c0010e2a07f9fc5eb7ce33cebe33",
+    "Players\\9C8317FC000000000000000000000000.sav": "5474f7d4523aaa467327df885fe27e5fc2263aa94d9be9ee924babd1df004316",
+    "Players\\D87864F3000000000000000000000000.sav": "f7a0f23bccc0fccde4e6b0eacc603581ad3bbdbee997474fac7e52f1a570592d",
     "Players\\D87864F3000000000000000000000000_dps.sav": "550a2896ec642400da9d0df3c1c5015a22213989e891e47e539df8e9d9083c50"
   },
   "config_redacted_keys": [
@@ -42,6 +42,6 @@
     "ServerPassword"
   ],
   "git_commit": null,
-  "git_commit_note": "see tag snapshot/20260929-164755 and rig state palworld-backup.json",
-  "snapshot_tag": "snapshot/20260929-164755"
+  "git_commit_note": "see tag snapshot/20260930-164839 and rig state palworld-backup.json",
+  "snapshot_tag": "snapshot/20260930-164839"
 }
